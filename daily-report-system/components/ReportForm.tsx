@@ -17,7 +17,6 @@ export default function ReportForm() {
   const [savedInfo, setSavedInfo] = useState<{ store: string; date: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 로그인한 점장의 매장에서 오늘 보고서가 있으면 불러와서 수정 모드로
   useEffect(() => {
     if (!myStore) return;
     const today = new Date().toISOString().slice(0, 10);
@@ -73,7 +72,6 @@ export default function ReportForm() {
 
   return (
     <form onSubmit={handleSubmit} style={{ maxWidth: '768px', margin: '0 auto', padding: '40px 24px' }}>
-      {/* 헤더 */}
       <header style={{
         marginBottom: '40px', display: 'flex', alignItems: 'flex-start',
         justifyContent: 'space-between', borderBottom: `1px solid ${C.border}`, paddingBottom: '32px',
@@ -89,7 +87,7 @@ export default function ReportForm() {
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
               borderRadius: '9999px', padding: '4px 12px',
-              backgroundColor: 'rgba(201, 169, 97, 0.15)', color: C.accent,
+              backgroundColor: 'rgba(160, 124, 44, 0.12)', color: C.accent,
             }}>
               <span style={{ height: '6px', width: '6px', borderRadius: '50%', backgroundColor: C.accent }} />
               {myStore}
@@ -110,7 +108,6 @@ export default function ReportForm() {
         </div>
       </header>
 
-      {/* 01. 매출 */}
       <Section no="01" title="매출 정보" subtitle="Sales Breakdown">
         <div style={{ ...S.card, marginBottom: '24px', padding: '24px' }}>
           <label style={S.label}>Total Sales · 총 매출</label>
@@ -141,7 +138,6 @@ export default function ReportForm() {
         </div>
       </Section>
 
-      {/* 02. 재고 */}
       <Section no="02" title="재고 / 점검" subtitle="Inventory">
         <Field label="부족 재고">
           <textarea
@@ -163,7 +159,6 @@ export default function ReportForm() {
         </Field>
       </Section>
 
-      {/* 03. 위생 */}
       <Section no="03" title="위생 / 시설" subtitle="Facility Check" counter={`${checkedCount}/5`}>
         <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
           {checkItems.map((item) => {
@@ -176,7 +171,7 @@ export default function ReportForm() {
                 style={{
                   borderRadius: '12px',
                   border: `1px solid ${on ? C.accent : C.border}`,
-                  backgroundColor: on ? 'rgba(201, 169, 97, 0.1)' : C.bgCard,
+                  backgroundColor: on ? 'rgba(160, 124, 44, 0.08)' : C.bgCard,
                   padding: '16px', textAlign: 'left', cursor: 'pointer', transition: 'all 0.15s',
                 }}
               >
@@ -185,7 +180,7 @@ export default function ReportForm() {
                   height: '24px', width: '24px', borderRadius: '50%',
                   border: `1px solid ${on ? C.accent : C.textFaint}`,
                   backgroundColor: on ? C.accent : 'transparent',
-                  color: on ? C.bg : C.textFaint, fontSize: '12px',
+                  color: on ? '#ffffff' : C.textFaint, fontSize: '12px',
                 }}>
                   {on ? '✓' : '○'}
                 </div>
@@ -201,7 +196,6 @@ export default function ReportForm() {
         </div>
       </Section>
 
-      {/* 04. 인원 / 특이사항 */}
       <Section no="04" title="인원 / 특이사항" subtitle="Staff & Notes">
         <Field label="근무 인원">
           <div style={{ ...S.card, padding: '16px' }}>
@@ -251,7 +245,6 @@ export default function ReportForm() {
           />
         </Field>
 
-        {/* 주요 이슈 선택 */}
         <div style={{ ...S.card, marginTop: '20px', padding: '20px' }}>
           <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -285,10 +278,10 @@ export default function ReportForm() {
                   style={{
                     position: 'relative', borderRadius: '8px',
                     border: `2px solid ${selected ? C.dangerBright : C.border}`,
-                    backgroundColor: selected ? C.danger : C.bg,
+                    backgroundColor: selected ? C.danger : C.bgCard,
                     padding: '12px', textAlign: 'left', cursor: 'pointer',
                     transition: 'all 0.15s',
-                    boxShadow: selected ? '0 10px 25px -5px rgba(239, 68, 68, 0.5)' : 'none',
+                    boxShadow: selected ? '0 10px 25px -5px rgba(239, 68, 68, 0.4)' : 'none',
                     transform: selected ? 'scale(1.02)' : 'scale(1)',
                   }}
                 >
@@ -307,9 +300,7 @@ export default function ReportForm() {
                       backgroundColor: '#ffffff', color: C.danger,
                       fontSize: '11px', fontWeight: 700,
                       boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                    }}>
-                      ✓
-                    </div>
+                    }}>✓</div>
                   )}
                 </button>
               );
@@ -323,7 +314,6 @@ export default function ReportForm() {
         </div>
       </Section>
 
-      {/* 05. 통계 */}
       <Section no="05" title="고객 통계" subtitle="Customer Stats">
         <div style={{ ...S.card, padding: '20px' }}>
           <div style={{ ...S.mono, marginBottom: '16px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.textDim }}>
@@ -356,12 +346,11 @@ export default function ReportForm() {
         </div>
       </Section>
 
-      {/* 저장 버튼 / 완료 토스트 */}
       <div style={{ position: 'sticky', bottom: '24px', marginTop: '40px' }}>
         {savedInfo ? (
           <div style={{
             borderRadius: '12px', border: `1px solid ${C.success}`,
-            backgroundColor: 'rgba(107, 142, 78, 0.15)',
+            backgroundColor: 'rgba(90, 122, 62, 0.08)',
             padding: '16px 20px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
             backdropFilter: 'blur(8px)',
@@ -392,9 +381,9 @@ export default function ReportForm() {
             disabled={saving}
             style={{
               width: '100%', padding: '16px', borderRadius: '12px', border: 'none',
-              backgroundColor: C.accent, color: C.bg,
+              backgroundColor: C.accent, color: '#ffffff',
               fontWeight: 600, fontSize: '16px', cursor: saving ? 'wait' : 'pointer',
-              boxShadow: '0 20px 40px -10px rgba(201, 169, 97, 0.3)',
+              boxShadow: '0 20px 40px -10px rgba(160, 124, 44, 0.3)',
               opacity: saving ? 0.6 : 1,
             }}
           >
@@ -406,9 +395,6 @@ export default function ReportForm() {
   );
 }
 
-// ============================================
-// 서브 컴포넌트
-// ============================================
 function Section({ no, title, subtitle, counter, children }: {
   no: string; title: string; subtitle: string; counter?: string; children: React.ReactNode;
 }) {
@@ -470,7 +456,7 @@ function TinyField({ label, value, onChange }: { label: string; value: number; o
         type="number"
         value={value === 0 ? '' : value}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
-        style={{ ...S.mono, width: '100%', borderRadius: '4px', backgroundColor: C.bg, border: `1px solid ${C.border}`, padding: '6px', textAlign: 'center', fontSize: '18px', color: C.text, outline: 'none' }}
+        style={{ ...S.mono, width: '100%', borderRadius: '4px', backgroundColor: C.bgDeep, border: `1px solid ${C.border}`, padding: '6px', textAlign: 'center', fontSize: '18px', color: C.text, outline: 'none' }}
         placeholder="0"
       />
     </div>
@@ -479,7 +465,7 @@ function TinyField({ label, value, onChange }: { label: string; value: number; o
 
 function StaffCounter({ label, subLabel, value, onChange }: { label: string; subLabel: string; value: number; onChange: (v: number) => void }) {
   return (
-    <div style={{ borderRadius: '8px', backgroundColor: C.bg, padding: '12px' }}>
+    <div style={{ borderRadius: '8px', backgroundColor: C.bgDeep, padding: '12px' }}>
       <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <span style={{ fontSize: '14px', fontWeight: 600, color: C.text }}>{label}</span>
         <span style={{ ...S.mono, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.textFaint }}>

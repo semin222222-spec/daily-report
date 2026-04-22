@@ -118,7 +118,7 @@ export default function MonthlyCalendar({
                     border: hasReport ? `2px solid ${C.accent}` : `1px solid ${C.border}`,
                     padding: '8px',
                     backgroundColor: hasData
-                      ? `rgba(201, 169, 97, ${0.08 + intensity * 0.7})`
+                      ? `rgba(160, 124, 44, ${0.1 + intensity * 0.75})`
                       : C.bg,
                     cursor: hasReport ? 'pointer' : 'default',
                     transition: 'all 0.15s',
@@ -126,7 +126,7 @@ export default function MonthlyCalendar({
                     fontFamily: 'inherit',
                   }}
                 >
-                  <div style={{ ...S.mono, fontSize: '12px', fontWeight: 600, color: intensity > 0.6 ? C.bg : C.text }}>
+                  <div style={{ ...S.mono, fontSize: '12px', fontWeight: 600, color: intensity > 0.6 ? '#ffffff' : C.text }}>
                     {cell.date}
                   </div>
                   {hasReport && (
@@ -142,7 +142,7 @@ export default function MonthlyCalendar({
                     <div style={{
                       ...S.mono, position: 'absolute', bottom: '6px', right: '6px',
                       fontSize: '9px', fontWeight: 500,
-                      color: intensity > 0.6 ? C.bg : C.textDim,
+                      color: intensity > 0.6 ? '#ffffff' : C.textDim,
                     }}>
                       {formatCompact(sales)}
                     </div>

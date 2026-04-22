@@ -32,7 +32,6 @@ function DashboardInner() {
   const [recentReports, setRecentReports] = useState<DailyReport[]>([]);
   const [summary, setSummary] = useState<any>(null);
 
-  // 대시보드 진입 시 / 월 이동 시 전체 데이터 새로고침
   useEffect(() => {
     Promise.all([
       getTodayIssues(),
@@ -56,7 +55,6 @@ function DashboardInner() {
 
   return (
     <div style={{ maxWidth: '1152px', margin: '0 auto', padding: '40px 24px' }}>
-      {/* 헤더 */}
       <header style={{
         marginBottom: '40px', display: 'flex', flexWrap: 'wrap',
         alignItems: 'flex-end', justifyContent: 'space-between', gap: '24px',
@@ -94,15 +92,12 @@ function DashboardInner() {
         </div>
       </header>
 
-      {/* 긴급 알림 */}
       <UrgentAlerts issues={todayIssues} />
 
-      {/* 최근 제출 보고서 */}
       {recentReports.length > 0 && (
         <RecentReports reports={recentReports} onOpen={(d) => setSelectedDate(d)} />
       )}
 
-      {/* KPI */}
       {summary && (
         <div style={{ marginBottom: '32px', display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
           <KPICard label="이번달 누적" subLabel={summary.currentLabel} value={formatKRW(summary.current.total)} accent />
@@ -120,7 +115,6 @@ function DashboardInner() {
         </div>
       )}
 
-      {/* 매장 필터 */}
       <div style={{ marginBottom: '24px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
         <span style={{ ...S.mono, marginRight: '8px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.textDim }}>
           Filter
@@ -135,7 +129,7 @@ function DashboardInner() {
                 borderRadius: '9999px',
                 border: `1px solid ${active ? C.accent : C.border}`,
                 backgroundColor: active ? C.accent : C.bgCard,
-                color: active ? C.bg : C.textDim,
+                color: active ? '#ffffff' : C.textDim,
                 padding: '6px 16px', fontSize: '12px', cursor: 'pointer',
                 fontWeight: active ? 600 : 400,
               }}
@@ -146,7 +140,6 @@ function DashboardInner() {
         })}
       </div>
 
-      {/* 캘린더 */}
       <MonthlyCalendar
         year={year}
         month={month}
@@ -154,10 +147,8 @@ function DashboardInner() {
         onDateClick={(d) => setSelectedDate(d)}
       />
 
-      {/* 전월 비교 */}
       <MonthCompareChart year={year} month={month} />
 
-      {/* 상세 모달 */}
       {selectedDate && (
         <ReportDetailModal
           date={selectedDate}
@@ -175,7 +166,7 @@ function KPICard({ label, subLabel, value, trend, accent }: {
     <div style={{
       position: 'relative', overflow: 'hidden', borderRadius: '16px',
       border: `1px solid ${accent ? C.accent : C.border}`,
-      background: accent ? `linear-gradient(135deg, rgba(201, 169, 97, 0.1), transparent)` : C.bgCard,
+      background: accent ? `linear-gradient(135deg, rgba(160, 124, 44, 0.08), transparent)` : C.bgCard,
       padding: '24px',
     }}>
       <div style={{

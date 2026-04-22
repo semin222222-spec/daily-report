@@ -7,17 +7,17 @@
 }
 
 html, body {
-  background-color: #0a0908;
-  color: #f2e9dc;
+  background-color: #faf7f2;
+  color: #1a1612;
 }
 
 input::placeholder, textarea::placeholder {
-  color: #5a544a;
+  color: #a89e8e;
 }
 
 input:focus, textarea:focus, select:focus {
-  border-color: #c9a961 !important;
-  background-color: #1a1612 !important;
+  border-color: #a07c2c !important;
+  background-color: #faf6ed !important;
 }
 
 button {

@@ -1,20 +1,20 @@
-// 색상 팔레트 (프로토타입과 동일)
+// 색상 팔레트 (Light Theme - 깔끔한 장부)
 export const C = {
-  bg: '#0a0908',
-  bgCard: '#14110f',
-  bgDeep: '#080706',
-  text: '#f2e9dc',
-  textDim: '#8a8378',
-  textFaint: '#5a544a',
-  border: '#2a2520',
-  borderLight: '#3a342e',
-  accent: '#c9a961',
-  accentBright: '#d9b971',
+  bg: '#faf7f2',         // 크림 배경 (종이 느낌)
+  bgCard: '#ffffff',     // 흰 카드
+  bgDeep: '#f0ebe3',     // 약간 진한 배경 (섹션 구분용)
+  text: '#1a1612',       // 진한 검정
+  textDim: '#6b6459',    // 중간 회색
+  textFaint: '#a89e8e',  // 연한 회색
+  border: '#e5ddc9',     // 부드러운 베이지 테두리
+  borderLight: '#f0e8d6',
+  accent: '#a07c2c',     // 호박색 (라이트 배경용)
+  accentBright: '#c9a961',
   danger: '#dc2626',
   dangerBright: '#ef4444',
   dangerDeep: '#991b1b',
-  success: '#6b8e4e',
-  warning: '#c9734e',
+  success: '#5a7a3e',    // 녹색
+  warning: '#b85c2c',    // 주황
 };
 
 // 공통 style 객체

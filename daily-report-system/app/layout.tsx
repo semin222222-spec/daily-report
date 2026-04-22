@@ -10,7 +10,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body style={{ fontFamily: "'EB Garamond', Georgia, serif", backgroundColor: '#0a0908', color: '#f2e9dc', minHeight: '100vh' }}>
+      <body style={{ fontFamily: "'EB Garamond', Georgia, serif", backgroundColor: '#faf7f2', color: '#1a1612', minHeight: '100vh' }}>
         <AuthProvider>
           <NavBar />
           <main>{children}</main>
