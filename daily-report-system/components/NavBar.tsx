@@ -11,7 +11,7 @@ export default function NavBar() {
     <nav style={{
       position: 'sticky', top: 0, zIndex: 50,
       borderBottom: `1px solid ${C.border}`,
-      backgroundColor: 'rgba(10, 9, 8, 0.95)',
+      backgroundColor: 'rgba(250, 247, 242, 0.95)',
       backdropFilter: 'blur(8px)',
     }}>
       <div style={{
