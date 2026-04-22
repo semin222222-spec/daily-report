@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background-color: #0a0908;
+  color: #f2e9dc;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #5a544a;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: #c9a961 !important;
+  background-color: #1a1612 !important;
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
