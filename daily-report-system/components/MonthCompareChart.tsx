@@ -5,6 +5,12 @@ import { STORES, getMonthComparison } from '@/lib/supabase';
 import { C, S, formatKRW, formatCompact } from '@/lib/theme';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 
+// 매장명 축약 (차트 라벨용)
+const shortName = (name: string) => {
+  if (name.startsWith('삐딱 ')) return name.replace('삐딱 ', '');
+  return name;
+};
+
 export default function MonthCompareChart({ year, month }: { year: number; month: number }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +27,8 @@ export default function MonthCompareChart({ year, month }: { year: number; month
   }
 
   const chartData = STORES.map((store) => ({
-    store,
+    store: shortName(store),
+    fullName: store,
     이번달: data.current.byStore[store] || 0,
     전월: data.previous.byStore[store] || 0,
   }));
@@ -30,108 +37,125 @@ export default function MonthCompareChart({ year, month }: { year: number; month
   const diffPct = data.previous.total > 0 ? (totalDiff / data.previous.total) * 100 : 0;
 
   return (
-    <div style={{ ...S.card, padding: '24px' }}>
-      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.accent }}>
-            Month-over-Month
-          </div>
-          <h2 style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 600, color: C.text }}>
-            전월 대비 매장별 비교
-          </h2>
+    <div style={{ ...S.card, padding: '16px' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.accent }}>
+          Month-over-Month
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.textDim }}>
+        <h2 style={{ margin: '4px 0 12px', fontSize: '18px', fontWeight: 600, color: C.text }}>
+          전월 대비 매장별 비교
+        </h2>
+        <div style={{
+          display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap',
+          padding: '10px 14px', borderRadius: '10px',
+          backgroundColor: totalDiff >= 0 ? 'rgba(90, 122, 62, 0.08)' : 'rgba(184, 92, 44, 0.08)',
+        }}>
+          <span style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.textDim }}>
             전체 증감
-          </div>
-          <div style={{ ...S.mono, fontSize: '20px', fontWeight: 700, color: totalDiff >= 0 ? C.success : C.warning }}>
-            {totalDiff >= 0 ? '+' : ''}{formatKRW(totalDiff)}
-          </div>
-          <div style={{ ...S.mono, fontSize: '11px', color: totalDiff >= 0 ? C.success : C.warning }}>
+          </span>
+          <span style={{ ...S.mono, fontSize: '18px', fontWeight: 700, color: totalDiff >= 0 ? C.success : C.warning }}>
+            {totalDiff >= 0 ? '+' : ''}{formatCompact(totalDiff)}원
+          </span>
+          <span style={{ ...S.mono, fontSize: '12px', color: totalDiff >= 0 ? C.success : C.warning }}>
             ({diffPct >= 0 ? '+' : ''}{diffPct.toFixed(1)}%)
-          </div>
+          </span>
         </div>
       </div>
 
-      <div style={{ height: '288px', width: '100%' }}>
+      <div style={{ height: '220px', width: '100%', marginBottom: '20px' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+          <BarChart data={chartData} margin={{ top: 10, right: 0, bottom: 40, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
-            <XAxis dataKey="store" fontSize={12} stroke={C.textDim} axisLine={false} tickLine={false} />
-            <YAxis
+            <XAxis
+              dataKey="store"
               fontSize={10}
+              stroke={C.textDim}
+              axisLine={false}
+              tickLine={false}
+              angle={-30}
+              textAnchor="end"
+              interval={0}
+              height={50}
+            />
+            <YAxis
+              fontSize={9}
               stroke={C.textDim}
               tickFormatter={(v) => `${(v / 10000).toFixed(0)}만`}
               axisLine={false}
               tickLine={false}
+              width={40}
             />
             <Tooltip
               contentStyle={{
-                background: C.bg,
+                background: C.bgCard,
                 border: `1px solid ${C.accent}`,
                 borderRadius: '8px',
                 fontFamily: 'JetBrains Mono, monospace',
-                fontSize: '12px',
+                fontSize: '11px',
               }}
               formatter={(v: number) => formatKRW(v)}
             />
-            <Legend wrapperStyle={{ fontSize: '12px', color: C.textDim }} />
+            <Legend wrapperStyle={{ fontSize: '11px', color: C.textDim }} />
             <Bar dataKey="전월" fill={C.textFaint} radius={[4, 4, 0, 0]} />
             <Bar dataKey="이번달" fill={C.accent} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      <div style={{ marginTop: '24px', overflow: 'hidden', borderRadius: '12px', border: `1px solid ${C.border}` }}>
-        <table style={{ width: '100%', fontSize: '14px', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${C.border}`, backgroundColor: C.bg }}>
-              <Th>Store</Th>
-              <Th right>전월</Th>
-              <Th right>이번달</Th>
-              <Th right>증감</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {chartData.map((row, i) => {
-              const diff = row.이번달 - row.전월;
-              const pct = row.전월 > 0 ? (diff / row.전월) * 100 : 0;
-              return (
-                <tr key={row.store} style={{ borderBottom: i < chartData.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, color: C.text }}>{row.store}</td>
-                  <td style={{ ...S.mono, padding: '12px 16px', textAlign: 'right', color: C.textDim }}>
-                    {formatKRW(row.전월)}
-                  </td>
-                  <td style={{ ...S.mono, padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: C.text }}>
-                    {formatKRW(row.이번달)}
-                  </td>
-                  <td style={{
-                    ...S.mono, padding: '12px 16px', textAlign: 'right',
-                    fontWeight: 600, color: diff >= 0 ? C.success : C.warning,
-                  }}>
-                    {diff >= 0 ? '+' : ''}{formatCompact(diff)}원
-                    <span style={{ marginLeft: '8px', fontSize: '12px', opacity: 0.7 }}>
-                      ({pct >= 0 ? '+' : ''}{pct.toFixed(1)}%)
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* 모바일 친화적 카드 리스트 (표 대신) */}
+      <div style={{
+        ...S.mono, fontSize: '10px', textTransform: 'uppercase',
+        letterSpacing: '0.15em', color: C.textDim, marginBottom: '8px',
+      }}>
+        Store Breakdown
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {chartData.map((row) => {
+          const diff = row.이번달 - row.전월;
+          const pct = row.전월 > 0 ? (diff / row.전월) * 100 : 0;
+          const positive = diff >= 0;
+          return (
+            <div
+              key={row.fullName}
+              style={{
+                padding: '12px 14px',
+                borderRadius: '10px',
+                border: `1px solid ${C.border}`,
+                backgroundColor: C.bgCard,
+              }}
+            >
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: '6px', gap: '8px',
+              }}>
+                <span style={{
+                  fontSize: '14px', fontWeight: 600, color: C.text,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  flex: '1 1 auto', minWidth: 0,
+                }}>
+                  {row.fullName}
+                </span>
+                <span style={{
+                  ...S.mono, fontSize: '12px', fontWeight: 700,
+                  color: positive ? C.success : C.warning,
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                }}>
+                  {positive ? '+' : ''}{formatCompact(diff)}원
+                </span>
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                ...S.mono, fontSize: '11px', color: C.textDim,
+              }}>
+                <span>전월 {formatCompact(row.전월)} → 이번달 {formatCompact(row.이번달)}</span>
+                <span style={{ color: positive ? C.success : C.warning }}>
+                  {positive ? '+' : ''}{pct.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
-  );
-}
-
-function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
-  return (
-    <th style={{
-      ...S.mono, padding: '12px 16px', textAlign: right ? 'right' : 'left',
-      fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em',
-      color: C.textDim, fontWeight: 400,
-    }}>
-      {children}
-    </th>
   );
 }

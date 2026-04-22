@@ -55,26 +55,24 @@ export default function MonthlyCalendar({
   }, [year, month]);
 
   return (
-    <div style={{ ...S.card, marginBottom: '32px', padding: '24px' }}>
-      <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.accent }}>
-            Sales Calendar
-          </div>
-          <h2 style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 600, color: C.text }}>
-            일별 매출 히트맵
-          </h2>
-          <p style={{ margin: 0, fontSize: '12px', color: C.textDim }}>
-            {storeFilter === '전체' ? '전 매장 합계' : storeFilter} · 날짜 클릭 시 상세 보고서 확인
-          </p>
+    <div style={{ ...S.card, marginBottom: '24px', padding: '16px' }}>
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.accent }}>
+          Sales Calendar
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.textDim }}>
+        <h2 style={{ margin: '4px 0 2px', fontSize: '18px', fontWeight: 600, color: C.text }}>
+          일별 매출 히트맵
+        </h2>
+        <p style={{ margin: 0, fontSize: '12px', color: C.textDim }}>
+          {storeFilter === '전체' ? '전 매장 합계' : storeFilter}
+        </p>
+        <div style={{ marginTop: '12px', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+          <span style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.textDim }}>
             Month Total
-          </div>
-          <div style={{ ...S.mono, fontSize: '24px', fontWeight: 600, color: C.accent }}>
-            {formatKRW(monthTotal)}
-          </div>
+          </span>
+          <span style={{ ...S.mono, fontSize: '20px', fontWeight: 600, color: C.accent }}>
+            {formatCompact(monthTotal)}원
+          </span>
         </div>
       </div>
 
@@ -82,7 +80,7 @@ export default function MonthlyCalendar({
 
       {!loading && (
         <>
-          <div style={{ marginBottom: '8px', display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', textAlign: 'center' }}>
+          <div style={{ marginBottom: '6px', display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center' }}>
             {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
               <div
                 key={d}
@@ -99,53 +97,64 @@ export default function MonthlyCalendar({
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
             {grid.map((cell, idx) => {
               if (!cell) return <div key={idx} style={{ aspectRatio: '1 / 1' }} />;
               const sales = dailyTotals[cell.dateStr] || 0;
               const intensity = sales / maxDaily;
               const hasData = sales > 0;
               const hasReport = datesWithReports.has(cell.dateStr);
+              const isDark = intensity > 0.6;
               return (
                 <button
                   key={idx}
                   onClick={() => hasReport && onDateClick(cell.dateStr)}
-                  title={hasReport ? `${cell.dateStr} 상세 보기` : cell.dateStr}
+                  title={hasReport ? `${cell.dateStr} - ${formatKRW(sales)}` : cell.dateStr}
                   style={{
                     aspectRatio: '1 / 1',
                     position: 'relative',
                     borderRadius: '8px',
-                    border: hasReport ? `2px solid ${C.accent}` : `1px solid ${C.border}`,
-                    padding: '8px',
+                    border: hasReport ? `1.5px solid ${C.accent}` : `1px solid ${C.border}`,
+                    padding: '4px',
                     backgroundColor: hasData
                       ? `rgba(160, 124, 44, ${0.1 + intensity * 0.75})`
                       : C.bg,
                     cursor: hasReport ? 'pointer' : 'default',
                     transition: 'all 0.15s',
-                    textAlign: 'left',
                     fontFamily: 'inherit',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '2px',
                   }}
                 >
-                  <div style={{ ...S.mono, fontSize: '12px', fontWeight: 600, color: intensity > 0.6 ? '#ffffff' : C.text }}>
+                  <div style={{
+                    ...S.mono,
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: isDark ? '#ffffff' : C.text,
+                    lineHeight: 1,
+                  }}>
                     {cell.date}
                   </div>
-                  {hasReport && (
-                    <div
-                      style={{
-                        position: 'absolute', top: '6px', right: '6px',
-                        height: '6px', width: '6px', borderRadius: '50%',
-                        backgroundColor: C.accent, boxShadow: `0 0 8px ${C.accent}`,
-                      }}
-                    />
-                  )}
                   {hasData && (
                     <div style={{
-                      ...S.mono, position: 'absolute', bottom: '6px', right: '6px',
-                      fontSize: '9px', fontWeight: 500,
-                      color: intensity > 0.6 ? '#ffffff' : C.textDim,
+                      ...S.mono,
+                      fontSize: '9px',
+                      fontWeight: 500,
+                      color: isDark ? 'rgba(255,255,255,0.9)' : C.textDim,
+                      lineHeight: 1,
                     }}>
                       {formatCompact(sales)}
                     </div>
+                  )}
+                  {hasReport && !hasData && (
+                    <div style={{
+                      position: 'absolute', top: '4px', right: '4px',
+                      height: '5px', width: '5px', borderRadius: '50%',
+                      backgroundColor: C.accent,
+                    }} />
                   )}
                 </button>
               );
@@ -154,14 +163,10 @@ export default function MonthlyCalendar({
 
           {datesWithReports.size > 0 && (
             <div style={{
-              ...S.mono, marginTop: '16px', fontSize: '10px',
-              color: C.textDim, display: 'flex', alignItems: 'center', gap: '8px',
+              ...S.mono, marginTop: '12px', fontSize: '10px',
+              color: C.textDim, textAlign: 'center',
             }}>
-              <span style={{
-                height: '8px', width: '8px', borderRadius: '50%',
-                backgroundColor: C.accent, boxShadow: `0 0 8px ${C.accent}`,
-              }} />
-              <span>저장된 보고서 있음 · 클릭해서 상세 보기</span>
+              날짜 클릭해서 상세 보기
             </div>
           )}
         </>
