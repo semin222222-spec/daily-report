@@ -8,7 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // ============================================
 // 상수
 // ============================================
-export const STORES = ['술집1', '술집2', '술집3', '술집4', '고기집1'] as const;
+export const STORES = ['삐딱 서울대점', '삐딱 문래점', '삐딱 연남점', '우삼집', '쑥고개'] as const;
 export type StoreName = (typeof STORES)[number];
 
 export const ISSUE_TYPES = [
