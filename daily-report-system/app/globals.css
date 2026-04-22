@@ -4,11 +4,19 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
   background-color: #faf7f2;
   color: #1a1612;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* iOS Safari가 16px 미만 입력 시 자동 확대하는 거 방지 */
+input, textarea, select {
+  font-size: 16px !important;
 }
 
 input::placeholder, textarea::placeholder {
@@ -22,9 +30,32 @@ input:focus, textarea:focus, select:focus {
 
 button {
   font-family: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 a {
   text-decoration: none;
   color: inherit;
+}
+
+/* 모바일에서 가로 스크롤 방지 */
+body {
+  overflow-x: hidden;
+}
+
+/* 터치 스크롤 부드럽게 */
+body, main {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 가로 스크롤 컨테이너 */
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.scroll-x::-webkit-scrollbar {
+  display: none;
 }
