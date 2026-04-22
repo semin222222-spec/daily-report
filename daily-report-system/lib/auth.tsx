@@ -21,6 +21,22 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// 세션 완전 초기화 (브라우저 저장소 싹 비우기)
+function clearAllAuth() {
+  if (typeof window === 'undefined') return;
+  try {
+    // Supabase 세션 키들 제거
+    Object.keys(localStorage).forEach((k) => {
+      if (k.startsWith('sb-') || k.includes('supabase')) localStorage.removeItem(k);
+    });
+    Object.keys(sessionStorage).forEach((k) => {
+      if (k.startsWith('sb-') || k.includes('supabase')) sessionStorage.removeItem(k);
+    });
+  } catch (e) {
+    console.error('세션 초기화 실패:', e);
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -28,35 +44,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // 3초 타임아웃
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+      const query = supabase
         .from('user_profiles')
         .select('*')
         .eq('user_id', userId)
-        .maybeSingle();
-      if (error) {
-        console.error('Profile load error:', error);
-        setProfile(null);
-      } else {
-        setProfile(data);
-      }
+        .maybeSingle()
+        .then((r) => r.data);
+
+      const data = await Promise.race([query, timeout]);
+      setProfile(data as UserProfile | null);
     } catch (err) {
-      console.error('Profile load exception:', err);
+      console.error('프로필 로드 실패:', err);
       setProfile(null);
     }
   };
 
   useEffect(() => {
     let mounted = true;
+    let safetyTimer: NodeJS.Timeout;
+
+    // 🚨 안전장치: 5초 안에 loading이 false로 안 되면 강제 초기화
+    safetyTimer = setTimeout(() => {
+      if (mounted && typeof window !== 'undefined') {
+        console.warn('⚠️ 로딩 타임아웃 - 세션 초기화 후 로그인 페이지로 이동');
+        clearAllAuth();
+        setLoading(false);
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+    }, 5000);
 
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!mounted) return;
-
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await loadProfile(session.user.id);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await loadProfile(session.user.id);
+        }
+      } catch (err) {
+        console.error('세션 초기화 실패:', err);
+        clearAllAuth();
+      } finally {
+        if (mounted) {
+          clearTimeout(safetyTimer);
+          setLoading(false);
+        }
       }
-      if (mounted) setLoading(false);
     };
 
     init();
@@ -69,11 +106,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setProfile(null);
       }
-      setLoading(false);
+      if (mounted) setLoading(false);
     });
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, []);
@@ -86,8 +124,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setProfile(null);
     setUser(null);
-    await supabase.auth.signOut();
-    window.location.href = '/login';
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error('로그아웃 에러:', e);
+    }
+    clearAllAuth();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   };
 
   return (
