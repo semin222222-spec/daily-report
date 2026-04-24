@@ -24,37 +24,40 @@ export default function RequireRole({
     }
   }, [user, profile, loading, allow, router]);
 
-  // 5초 지나도 loading이 계속이면 "다시 시도" 버튼 표시
   useEffect(() => {
     if (!loading) return;
-    const t = setTimeout(() => setShowReload(true), 5000);
+    const t = setTimeout(() => setShowReload(true), 3000);
     return () => clearTimeout(t);
   }, [loading]);
 
   if (loading || !user || !profile) {
     return (
-      <div style={{ padding: '60px', textAlign: 'center', color: C.textDim }}>
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: C.textDim }}>
         <div>확인 중...</div>
         {showReload && (
-          <div style={{ marginTop: '24px' }}>
-            <div style={{ marginBottom: '12px', fontSize: '13px' }}>
-              오래 걸리나요?
+          <div style={{ marginTop: '32px' }}>
+            <div style={{ marginBottom: '16px', fontSize: '13px' }}>
+              오래 걸리시나요?
             </div>
             <button
               onClick={() => {
                 Object.keys(localStorage).forEach((k) => {
                   if (k.startsWith('sb-') || k.includes('supabase')) localStorage.removeItem(k);
                 });
+                Object.keys(sessionStorage).forEach((k) => {
+                  if (k.startsWith('sb-') || k.includes('supabase')) sessionStorage.removeItem(k);
+                });
                 window.location.href = '/login';
               }}
               style={{
-                padding: '8px 20px',
+                padding: '10px 24px',
                 borderRadius: '8px',
                 border: `1px solid ${C.accent}`,
                 backgroundColor: C.accent,
                 color: '#fff',
-                fontSize: '13px',
+                fontSize: '14px',
                 cursor: 'pointer',
+                fontWeight: 600,
               }}
             >
               다시 로그인하기

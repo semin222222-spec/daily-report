@@ -21,11 +21,10 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// 세션 완전 초기화 (브라우저 저장소 싹 비우기)
+// 세션 꼬였을 때 완전 초기화
 function clearAllAuth() {
   if (typeof window === 'undefined') return;
   try {
-    // Supabase 세션 키들 제거
     Object.keys(localStorage).forEach((k) => {
       if (k.startsWith('sb-') || k.includes('supabase')) localStorage.removeItem(k);
     });
@@ -44,7 +43,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadProfile = async (userId: string) => {
     try {
-      // 3초 타임아웃
       const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
       const query = supabase
         .from('user_profiles')
@@ -65,10 +63,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     let safetyTimer: NodeJS.Timeout;
 
-    // 🚨 안전장치: 5초 안에 loading이 false로 안 되면 강제 초기화
+    // 안전장치: 5초 안에 로딩 안 풀리면 강제 초기화
     safetyTimer = setTimeout(() => {
       if (mounted && typeof window !== 'undefined') {
-        console.warn('⚠️ 로딩 타임아웃 - 세션 초기화 후 로그인 페이지로 이동');
+        console.warn('⚠️ 로딩 타임아웃 - 세션 초기화');
         clearAllAuth();
         setLoading(false);
         if (window.location.pathname !== '/login') {
