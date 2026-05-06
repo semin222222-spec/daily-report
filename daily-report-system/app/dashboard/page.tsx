@@ -58,6 +58,12 @@ function DashboardInner() {
     ? ((summary.current.total - summary.previous.total) / summary.previous.total) * 100
     : 0;
 
+  // 천단위 쉼표 + 원
+  const formatWithComma = (n: number) => {
+    const sign = n < 0 ? '-' : (n > 0 ? '+' : '');
+    return sign + new Intl.NumberFormat('ko-KR').format(Math.abs(n)) + '원';
+  };
+
   return (
     <div style={{ maxWidth: '1152px', margin: '0 auto', padding: '20px 14px 80px' }}>
       <header style={{
@@ -74,7 +80,6 @@ function DashboardInner() {
           날짜 클릭해서 상세 보기
         </div>
 
-        {/* 월 이동 */}
         <div style={{
           marginTop: '16px',
           display: 'flex', alignItems: 'center', gap: '8px',
@@ -114,24 +119,23 @@ function DashboardInner() {
           <KPICard
             label="이번달 누적"
             subLabel={summary.currentLabel}
-            value={formatCompact(summary.current.total) + '원'}
+            value={formatKRW(summary.current.total)}
             accent
           />
           <KPICard
             label="전월"
             subLabel={summary.previousLabel}
-            value={formatCompact(summary.previous.total) + '원'}
+            value={formatKRW(summary.previous.total)}
           />
           <KPICard
             label="전월 대비"
             subLabel={`${totalDiff >= 0 ? '+' : ''}${diffPct.toFixed(1)}%`}
-            value={`${totalDiff >= 0 ? '+' : ''}${formatCompact(totalDiff)}원`}
+            value={formatWithComma(totalDiff)}
             trend={totalDiff >= 0 ? 'up' : 'down'}
           />
         </div>
       )}
 
-      {/* 매장 필터 - 가로 스크롤 */}
       <div style={{ marginBottom: '16px' }}>
         <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.textDim, marginBottom: '8px' }}>
           Filter · 매장
@@ -209,9 +213,9 @@ function KPICard({ label, subLabel, value, trend, accent }: {
         <span style={{ color: accent ? C.accent : 'inherit', whiteSpace: 'nowrap' }}>{subLabel}</span>
       </div>
       <div style={{
-        ...S.mono, fontSize: '22px', fontWeight: 600, letterSpacing: '-0.01em',
+        ...S.mono, fontSize: '20px', fontWeight: 600, letterSpacing: '-0.01em',
         color: trend === 'up' ? C.success : trend === 'down' ? C.warning : accent ? C.accent : C.text,
-        whiteSpace: 'nowrap',
+        wordBreak: 'break-word',
       }}>
         {value}
       </div>

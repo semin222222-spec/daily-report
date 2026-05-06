@@ -40,22 +40,51 @@ export default function NavBar() {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
+          gap: '8px',
           fontSize: '13px',
           minWidth: 0,
         }}>
-          {user ? (
+          {user && profile && (
             <>
+              {/* 점장: 마감 보고 + 내 매장 */}
+              {profile.role === 'manager' && (
+                <>
+                  <Link href="/report" style={{
+                    color: C.textDim, fontSize: '12px',
+                    padding: '6px 8px', whiteSpace: 'nowrap',
+                  }}>
+                    마감 작성
+                  </Link>
+                  <Link href="/my-dashboard" style={{
+                    color: C.textDim, fontSize: '12px',
+                    padding: '6px 8px', whiteSpace: 'nowrap',
+                  }}>
+                    내 매장
+                  </Link>
+                </>
+              )}
+
+              {/* 사장: 대시보드 */}
+              {profile.role === 'owner' && (
+                <Link href="/dashboard" style={{
+                  color: C.textDim, fontSize: '12px',
+                  padding: '6px 8px', whiteSpace: 'nowrap',
+                }}>
+                  대시보드
+                </Link>
+              )}
+
               <span style={{
                 color: C.textDim,
-                fontSize: '12px',
+                fontSize: '11px',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                maxWidth: '45vw',
+                maxWidth: '25vw',
               }}>
-                {profile?.store_name || (profile?.role === 'owner' ? '사장님' : user.email)}
+                {profile.store_name || (profile.role === 'owner' ? '사장님' : '')}
               </span>
+
               <button
                 onClick={signOut}
                 style={{
@@ -63,7 +92,7 @@ export default function NavBar() {
                   backgroundColor: 'transparent',
                   color: C.textDim,
                   fontSize: '12px',
-                  padding: '6px 12px',
+                  padding: '6px 10px',
                   borderRadius: '6px',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
@@ -73,7 +102,9 @@ export default function NavBar() {
                 로그아웃
               </button>
             </>
-          ) : (
+          )}
+
+          {!user && (
             <Link href="/login" style={{
               color: C.accent,
               padding: '6px 12px',

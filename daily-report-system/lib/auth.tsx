@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from './supabase';
 import type { User } from '@supabase/supabase-js';
 
@@ -21,7 +21,6 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// 세션 꼬였을 때 완전 초기화
 function clearAllAuth() {
   if (typeof window === 'undefined') return;
   try {
@@ -40,10 +39,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialized = useRef(false);
 
   const loadProfile = async (userId: string) => {
     try {
-      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
       const query = supabase
         .from('user_profiles')
         .select('*')
@@ -55,7 +55,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(data as UserProfile | null);
     } catch (err) {
       console.error('프로필 로드 실패:', err);
-      setProfile(null);
     }
   };
 
@@ -63,17 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     let safetyTimer: NodeJS.Timeout;
 
-    // 안전장치: 5초 안에 로딩 안 풀리면 강제 초기화
+    // 🔥 안전장치: 첫 로딩 때만 작동 (10초로 늘림)
     safetyTimer = setTimeout(() => {
-      if (mounted && typeof window !== 'undefined') {
-        console.warn('⚠️ 로딩 타임아웃 - 세션 초기화');
-        clearAllAuth();
+      if (mounted && !initialized.current) {
+        console.warn('⚠️ 첫 로딩 타임아웃');
         setLoading(false);
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
       }
-    }, 5000);
+    }, 10000);
 
     const init = async () => {
       try {
@@ -85,10 +80,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.error('세션 초기화 실패:', err);
-        clearAllAuth();
       } finally {
         if (mounted) {
           clearTimeout(safetyTimer);
+          initialized.current = true;
           setLoading(false);
         }
       }
@@ -96,15 +91,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // 🔥 핵심 수정: 이벤트별로 다르게 처리
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await loadProfile(session.user.id);
-      } else {
-        setProfile(null);
+
+      console.log('Auth event:', event); // 디버깅용
+
+      // TOKEN_REFRESHED, USER_UPDATED 같은 이벤트는 user 정보만 업데이트하고 끝
+      // 프로필 다시 로드 안 함, loading도 안 건드림
+      if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        setUser(session?.user ?? null);
+        return;
       }
-      if (mounted) setLoading(false);
+
+      // SIGNED_IN: 로그인할 때만 프로필 로드
+      if (event === 'SIGNED_IN') {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await loadProfile(session.user.id);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // SIGNED_OUT: 로그아웃
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      // INITIAL_SESSION: 첫 진입 (init에서 처리하니까 무시)
+      if (event === 'INITIAL_SESSION') {
+        return;
+      }
     });
 
     return () => {

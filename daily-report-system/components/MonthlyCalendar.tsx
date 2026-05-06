@@ -71,7 +71,7 @@ export default function MonthlyCalendar({
             Month Total
           </span>
           <span style={{ ...S.mono, fontSize: '20px', fontWeight: 600, color: C.accent }}>
-            {formatCompact(monthTotal)}원
+            {formatKRW(monthTotal)}
           </span>
         </div>
       </div>
@@ -126,13 +126,13 @@ export default function MonthlyCalendar({
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '2px',
+                    gap: '4px',
                   }}
                 >
                   <div style={{
                     ...S.mono,
                     fontSize: '14px',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     color: isDark ? '#ffffff' : C.text,
                     lineHeight: 1,
                   }}>
@@ -141,10 +141,11 @@ export default function MonthlyCalendar({
                   {hasData && (
                     <div style={{
                       ...S.mono,
-                      fontSize: '9px',
-                      fontWeight: 500,
-                      color: isDark ? 'rgba(255,255,255,0.9)' : C.textDim,
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: isDark ? '#ffffff' : C.accent,
                       lineHeight: 1,
+                      letterSpacing: '-0.02em',
                     }}>
                       {formatCompact(sales)}
                     </div>

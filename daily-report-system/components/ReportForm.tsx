@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import {
   DailyReport, StoreName, ISSUE_TYPES,
@@ -16,21 +16,88 @@ export default function ReportForm() {
   const [saving, setSaving] = useState(false);
   const [savedInfo, setSavedInfo] = useState<{ store: string; date: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [autoSaved, setAutoSaved] = useState<string | null>(null);
+  const isInitialLoad = useRef(true);
+  const currentDateRef = useRef<string>('');
 
+  // 현재 폼의 날짜
+  const formDate = form?.report_date || '';
+  const draftKey = myStore && formDate ? `draft_${myStore}_${formDate}` : '';
+
+  // 첫 진입: 오늘 날짜의 데이터 불러오기
   useEffect(() => {
     if (!myStore) return;
     const today = new Date().toISOString().slice(0, 10);
-    (async () => {
-      try {
-        const existing = await getReport(myStore, today);
-        setForm(existing || emptyReport(myStore));
-      } catch (e) {
-        setForm(emptyReport(myStore));
-      } finally {
-        setLoading(false);
-      }
-    })();
+    currentDateRef.current = today;
+    loadReportForDate(myStore, today, true);
   }, [myStore]);
+
+  // 특정 날짜의 보고서 불러오기 (서버 우선, 없으면 로컬 임시저장)
+  const loadReportForDate = async (store: StoreName, date: string, isFirst: boolean) => {
+    if (isFirst) setLoading(true);
+    isInitialLoad.current = true; // 자동저장 막아놓기
+
+    try {
+      // 1. 서버 보고서 확인
+      const existing = await getReport(store, date);
+      if (existing) {
+        setForm(existing);
+        setAutoSaved(null);
+      } else {
+        // 2. 서버에 없으면 로컬 임시저장 확인
+        if (typeof window !== 'undefined') {
+          const key = `draft_${store}_${date}`;
+          const draft = localStorage.getItem(key);
+          if (draft) {
+            try {
+              const parsed = JSON.parse(draft);
+              setForm(parsed);
+              setAutoSaved('이전에 작성하던 내용을 불러왔어요');
+              setTimeout(() => setAutoSaved(null), 4000);
+              return;
+            } catch (e) {
+              console.error('임시저장 복구 실패:', e);
+            }
+          }
+        }
+        // 3. 둘 다 없으면 빈 폼 (날짜 적용)
+        setForm({ ...emptyReport(store), report_date: date });
+        setAutoSaved(null);
+      }
+    } catch (e) {
+      setForm({ ...emptyReport(store), report_date: date });
+    } finally {
+      if (isFirst) setLoading(false);
+      // 0.5초 후부터 자동저장 활성화
+      setTimeout(() => { isInitialLoad.current = false; }, 500);
+    }
+  };
+
+  // 🔑 날짜가 변경되면 새 날짜 데이터 불러오기
+  useEffect(() => {
+    if (!myStore || !formDate) return;
+    if (currentDateRef.current === formDate) return; // 같은 날짜면 무시
+    if (currentDateRef.current === '') return; // 첫 로드는 무시
+
+    currentDateRef.current = formDate;
+    loadReportForDate(myStore, formDate, false);
+  }, [formDate, myStore]);
+
+  // 자동 저장: form 변경되면 1초 후 로컬 저장
+  useEffect(() => {
+    if (!form || !draftKey || isInitialLoad.current) return;
+    if (typeof window === 'undefined') return;
+
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify(form));
+      } catch (e) {
+        console.error('임시저장 실패:', e);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [form, draftKey]);
 
   if (loading || !form || !myStore) {
     return <div style={{ padding: '60px', textAlign: 'center', color: C.textDim }}>로딩 중...</div>;
@@ -63,6 +130,9 @@ export default function ReportForm() {
     try {
       await saveReport(form);
       setSavedInfo({ store: form.store_name, date: form.report_date });
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(draftKey);
+      }
     } catch (err: any) {
       alert(`저장 실패: ${err.message || err}`);
     } finally {
@@ -72,6 +142,24 @@ export default function ReportForm() {
 
   return (
     <form onSubmit={handleSubmit} style={{ maxWidth: '768px', margin: '0 auto', padding: '24px 16px 100px' }}>
+      {autoSaved && (
+        <div style={{
+          marginBottom: '16px',
+          padding: '12px 14px',
+          borderRadius: '10px',
+          backgroundColor: 'rgba(160, 124, 44, 0.08)',
+          border: `1px solid ${C.accent}`,
+          fontSize: '13px',
+          color: C.accent,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <span>💾</span>
+          <span>{autoSaved}</span>
+        </div>
+      )}
+
       <header style={{
         marginBottom: '32px',
         display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start',
@@ -347,7 +435,15 @@ export default function ReportForm() {
         </div>
       </Section>
 
-      <div style={{ position: 'sticky', bottom: '16px', marginTop: '32px', zIndex: 10 }}>
+      <div style={{
+        ...S.mono,
+        textAlign: 'center', fontSize: '11px', color: C.textDim,
+        padding: '8px', marginBottom: '8px',
+      }}>
+        💾 입력 내용은 자동으로 임시 저장됩니다
+      </div>
+
+      <div style={{ position: 'sticky', bottom: '16px', marginTop: '16px', zIndex: 10 }}>
         {savedInfo ? (
           <div style={{
             borderRadius: '12px', border: `1px solid ${C.success}`,
