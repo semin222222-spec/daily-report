@@ -24,13 +24,16 @@ export default function RequireRole({
     }
   }, [user, profile, loading, allow, router]);
 
+  // 로딩이든 프로필 미로드든, 가드에 막혀있는 상태가 일정 시간 지속되면
+  // 탈출구(다시 로그인) 노출
+  const blocked = loading || !user || !profile;
   useEffect(() => {
-    if (!loading) return;
-    const t = setTimeout(() => setShowReload(true), 3000);
+    if (!blocked) { setShowReload(false); return; }
+    const t = setTimeout(() => setShowReload(true), 4000);
     return () => clearTimeout(t);
-  }, [loading]);
+  }, [blocked]);
 
-  if (loading || !user || !profile) {
+  if (blocked) {
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center', color: C.textDim }}>
         <div>확인 중...</div>

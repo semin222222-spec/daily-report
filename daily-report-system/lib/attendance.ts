@@ -78,6 +78,13 @@ export const formatDuration = (h: number | null): string => {
   return `${hh}시간 ${mm}분`;
 };
 
+// 'YYYY-MM-DD' → 요일 (KST). '월' '화' ... '일'
+export const kstWeekday = (dateStr: string): string =>
+  new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    weekday: 'short',
+  }).format(new Date(`${dateStr}T00:00:00+09:00`));
+
 // 새벽 퇴근(출근일과 퇴근일이 다른 날, KST)이면 "02:30⁺¹" 표기
 export const formatCheckOut = (
   checkInISO: string,
@@ -309,6 +316,32 @@ export function summarizeByStaff(records: AttendanceRecord[]): Record<string, St
     else s.totalHours += h;
   }
   return map;
+}
+
+// 날짜별 요약 (그날 전체 알바 합산)
+export type DaySummary = {
+  work_date: string;    // 'YYYY-MM-DD'
+  totalHours: number;   // 퇴근 완료분만 합산
+  staffCount: number;   // 그날 출근한 알바 수 (기록 수)
+  openCount: number;    // 미퇴근(근무중) 건수
+};
+
+// 월 기록 → 날짜별 요약 배열 (최신 날짜 우선)
+export function summarizeByDate(records: AttendanceRecord[]): DaySummary[] {
+  const map: Record<string, DaySummary> = {};
+  for (const r of records) {
+    const d = (map[r.work_date] ??= {
+      work_date: r.work_date,
+      totalHours: 0,
+      staffCount: 0,
+      openCount: 0,
+    });
+    d.staffCount += 1;
+    const h = hoursBetween(r.check_in_at, r.check_out_at);
+    if (h === null) d.openCount += 1;
+    else d.totalHours += h;
+  }
+  return Object.values(map).sort((a, b) => (a.work_date < b.work_date ? 1 : -1));
 }
 
 export { STORES };

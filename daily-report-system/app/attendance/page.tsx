@@ -17,8 +17,10 @@ import {
   getTodayRecords,
   getOpenRecords,
   summarizeByStaff,
+  summarizeByDate,
   formatDuration,
   kstTimeStr,
+  kstWeekday,
 } from '@/lib/attendance';
 
 export default function AttendancePage() {
@@ -74,6 +76,7 @@ function AttendanceInner() {
   useEffect(reload, [storeFilter, year, month]);
 
   const summary = useMemo(() => summarizeByStaff(monthRecords), [monthRecords]);
+  const dateSummary = useMemo(() => summarizeByDate(monthRecords), [monthRecords]);
 
   // 월간 KPI
   const monthTotalHours = Object.values(summary).reduce((a, s) => a + s.totalHours, 0);
@@ -281,6 +284,56 @@ function AttendanceInner() {
             );
           })}
         </div>
+      </section>
+
+      {/* 날짜별 합산 (그날 전체 알바 합계) */}
+      <section style={{ ...S.card, padding: '16px', marginTop: '20px' }}>
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.accent, marginBottom: '4px' }}>
+            Daily · {year}.{String(month).padStart(2, '0')}
+          </div>
+          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: C.text }}>날짜별 합산</h2>
+        </div>
+
+        {loading && <div style={{ padding: '20px', textAlign: 'center', color: C.textDim }}>로딩 중...</div>}
+
+        {!loading && dateSummary.length === 0 && (
+          <div style={{ padding: '20px', textAlign: 'center', color: C.textDim, fontSize: '14px' }}>
+            이번 달 기록이 없습니다.
+          </div>
+        )}
+
+        {!loading && dateSummary.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {dateSummary.map((d) => {
+              const wd = kstWeekday(d.work_date);
+              const wdColor = wd === '일' ? C.danger : wd === '토' ? '#3b6fb8' : C.textDim;
+              const open = d.openCount > 0;
+              return (
+                <div key={d.work_date} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+                  padding: '10px 12px', borderRadius: '8px',
+                  border: `1px solid ${open ? C.accent : C.border}`,
+                  backgroundColor: open ? 'rgba(160, 124, 44, 0.06)' : C.bg,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 }}>
+                    <span style={{ ...S.mono, fontSize: '15px', fontWeight: 600, color: C.text }}>
+                      {d.work_date.slice(5)}
+                    </span>
+                    <span style={{ ...S.mono, fontSize: '12px', color: wdColor }}>{wd}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <span style={{ ...S.mono, fontSize: '12px', color: C.textDim }}>{d.staffCount}명</span>
+                    <span style={{ ...S.mono, fontSize: '14px', fontWeight: 600, color: C.accent, textAlign: 'right' }}>
+                      {formatDuration(d.totalHours)}
+                      {open && <span style={{ color: C.textFaint, fontSize: '11px', fontWeight: 400 }}> · {d.openCount} 근무중</span>}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {showAdd && activeStore && (

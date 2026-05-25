@@ -61,32 +61,30 @@ export default function NavBar() {
                   }}>
                     내 매장
                   </Link>
-                  <Link href="/attendance" style={{
-                    color: C.textDim, fontSize: '12px',
-                    padding: '6px 8px', whiteSpace: 'nowrap',
-                  }}>
-                    근태
-                  </Link>
                 </>
               )}
 
-              {/* 사장: 대시보드 + 근태 */}
+              {/* 사장: 대시보드 */}
               {profile.role === 'owner' && (
-                <>
-                  <Link href="/dashboard" style={{
-                    color: C.textDim, fontSize: '12px',
-                    padding: '6px 8px', whiteSpace: 'nowrap',
-                  }}>
-                    대시보드
-                  </Link>
-                  <Link href="/attendance" style={{
-                    color: C.textDim, fontSize: '12px',
-                    padding: '6px 8px', whiteSpace: 'nowrap',
-                  }}>
-                    근태
-                  </Link>
-                </>
+                <Link href="/dashboard" style={{
+                  color: C.textDim, fontSize: '12px',
+                  padding: '6px 8px', whiteSpace: 'nowrap',
+                }}>
+                  대시보드
+                </Link>
               )}
+
+              {/* 근태: 매장명(점장) 바로 옆에 눈에 띄는 큰 버튼 */}
+              <Link href="/attendance" style={{
+                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                backgroundColor: C.accent, color: C.bg,
+                fontSize: '14px', fontWeight: 700,
+                padding: '8px 14px', borderRadius: '8px',
+                whiteSpace: 'nowrap', minHeight: '36px',
+                textDecoration: 'none', flexShrink: 0,
+              }}>
+                ⏱ 근태
+              </Link>
 
               <span style={{
                 color: C.textDim,
