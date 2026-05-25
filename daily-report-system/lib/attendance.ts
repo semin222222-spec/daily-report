@@ -157,6 +157,25 @@ export async function reactivateStaff(staffId: string): Promise<void> {
   if (error) throw error;
 }
 
+// 이름 수정 (오타 정정용). 기존 UPDATE RLS 정책으로 동작.
+export async function renameStaff(staffId: string, name: string): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('이름이 비어 있습니다');
+  const { error } = await supabase
+    .from('attendance_staff')
+    .update({ name: trimmed })
+    .eq('id', staffId);
+  if (error) throw error;
+}
+
+// 완전 삭제 (출퇴근 기록까지 영구 삭제). 되돌릴 수 없음.
+//  - 004_attendance_delete.sql 의 delete_staff_cascade RPC 필요.
+//  - 권한 검사는 RPC 내부에서 (owner 전체 / manager 자기 매장).
+export async function deleteStaff(staffId: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_staff_cascade', { p_staff_id: staffId });
+  if (error) throw error;
+}
+
 // ============================================
 // 출퇴근 기록 쿼리
 // ============================================
@@ -318,30 +337,70 @@ export function summarizeByStaff(records: AttendanceRecord[]): Record<string, St
   return map;
 }
 
-// 날짜별 요약 (그날 전체 알바 합산)
-export type DaySummary = {
-  work_date: string;    // 'YYYY-MM-DD'
-  totalHours: number;   // 퇴근 완료분만 합산
-  staffCount: number;   // 그날 출근한 알바 수 (기록 수)
-  openCount: number;    // 미퇴근(근무중) 건수
+// ============================================
+// CSV (엑셀) 내보내기
+//   매트릭스: 행=날짜, 열=알바, 셀=그날 근무시간(소수). 하단에 월합계/근무일수.
+//   한 표 안에 일별 시간과 월별 합산이 모두 들어간다.
+// ============================================
+const round2 = (h: number) => Math.round(h * 100) / 100;
+
+// CSV 셀 이스케이프 (콤마/따옴표/줄바꿈 포함 시 따옴표 처리)
+const csvCell = (v: string | number): string => {
+  const s = String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-// 월 기록 → 날짜별 요약 배열 (최신 날짜 우선)
-export function summarizeByDate(records: AttendanceRecord[]): DaySummary[] {
-  const map: Record<string, DaySummary> = {};
+export function buildAttendanceCsv(
+  records: AttendanceRecord[],
+  staffById: Record<string, Staff>,
+  withStore: boolean // owner 전체 보기처럼 매장명을 열 이름에 붙일지
+): string {
+  // 열(알바): 기록이 1건 이상 있는 알바만, 이름순
+  const ids = [...new Set(records.map((r) => r.staff_id))];
+  const cols = ids
+    .map((id) => ({ id, staff: staffById[id] as Staff | undefined }))
+    .sort((a, b) => (a.staff?.name ?? '').localeCompare(b.staff?.name ?? '', 'ko'));
+
+  // 행(날짜): 오름차순
+  const dates = [...new Set(records.map((r) => r.work_date))].sort();
+
+  // (날짜+알바) → 근무시간(완료분만). 미퇴근이면 null.
+  const cell = new Map<string, number | null>();
   for (const r of records) {
-    const d = (map[r.work_date] ??= {
-      work_date: r.work_date,
-      totalHours: 0,
-      staffCount: 0,
-      openCount: 0,
-    });
-    d.staffCount += 1;
-    const h = hoursBetween(r.check_in_at, r.check_out_at);
-    if (h === null) d.openCount += 1;
-    else d.totalHours += h;
+    cell.set(`${r.work_date}__${r.staff_id}`, hoursBetween(r.check_in_at, r.check_out_at));
   }
-  return Object.values(map).sort((a, b) => (a.work_date < b.work_date ? 1 : -1));
+
+  const colLabel = (c: { staff?: Staff }) => {
+    const name = c.staff?.name ?? '(삭제됨)';
+    return withStore && c.staff ? `${name} (${c.staff.store_name})` : name;
+  };
+
+  const rows: (string | number)[][] = [];
+  rows.push(['날짜', '요일', ...cols.map(colLabel), '일계']);
+
+  for (const d of dates) {
+    let dayTotal = 0;
+    const cells = cols.map((c) => {
+      const h = cell.get(`${d}__${c.id}`);
+      if (h == null) return ''; // 미퇴근/없음
+      dayTotal += h;
+      return round2(h);
+    });
+    rows.push([d, kstWeekday(d), ...cells, dayTotal ? round2(dayTotal) : '']);
+  }
+
+  // 월합계
+  const totals = cols.map((c) =>
+    dates.reduce((sum, d) => sum + (cell.get(`${d}__${c.id}`) ?? 0), 0)
+  );
+  const grand = totals.reduce((a, b) => a + b, 0);
+  rows.push(['월합계', '', ...totals.map(round2), round2(grand)]);
+
+  // 근무일수
+  const days = cols.map((c) => dates.filter((d) => cell.has(`${d}__${c.id}`)).length);
+  rows.push(['근무일수', '', ...days, '']);
+
+  return rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
 }
 
 export { STORES };

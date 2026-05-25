@@ -17,8 +17,10 @@ import {
   getTodayRecords,
   getOpenRecords,
   summarizeByStaff,
-  summarizeByDate,
+  buildAttendanceCsv,
   formatDuration,
+  formatCheckOut,
+  hoursBetween,
   kstTimeStr,
   kstWeekday,
 } from '@/lib/attendance';
@@ -47,7 +49,8 @@ function AttendanceInner() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
-  const [staff, setStaff] = useState<Staff[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);          // 활성 알바 (카드/오늘 현황)
+  const [allStaff, setAllStaff] = useState<Staff[]>([]);    // 비활성 포함 (날짜별 뷰 이름 표시)
   const [monthRecords, setMonthRecords] = useState<AttendanceRecord[]>([]);
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
   const [openRecords, setOpenRecords] = useState<AttendanceRecord[]>([]);
@@ -63,12 +66,14 @@ function AttendanceInner() {
       getMonthRecords(year, month, activeStore),
       getTodayRecords(activeStore),
       getOpenRecords(activeStore),
+      listStaff(activeStore, true), // 비활성 포함 — 지난 기록의 이름 표시용
     ])
-      .then(([s, mr, tr, or]) => {
+      .then(([s, mr, tr, or, all]) => {
         setStaff(s);
         setMonthRecords(mr);
         setTodayRecords(tr);
         setOpenRecords(or);
+        setAllStaff(all);
       })
       .catch((e) => console.error(e))
       .finally(() => setLoading(false));
@@ -76,7 +81,32 @@ function AttendanceInner() {
   useEffect(reload, [storeFilter, year, month]);
 
   const summary = useMemo(() => summarizeByStaff(monthRecords), [monthRecords]);
-  const dateSummary = useMemo(() => summarizeByDate(monthRecords), [monthRecords]);
+
+  // 날짜별 → 개인별 분리 (전체 합산이 아니라 알바 한 명씩)
+  const staffById = useMemo(() => {
+    const m: Record<string, Staff> = {};
+    for (const s of allStaff) m[s.id] = s;
+    return m;
+  }, [allStaff]);
+
+  const dailyGroups = useMemo(() => {
+    const map = new Map<string, AttendanceRecord[]>();
+    for (const r of monthRecords) {
+      const arr = map.get(r.work_date) ?? [];
+      arr.push(r);
+      map.set(r.work_date, arr);
+    }
+    return [...map.entries()]
+      .sort((a, b) => (a[0] < b[0] ? 1 : -1)) // 최신 날짜 우선
+      .map(([date, recs]) => ({
+        date,
+        recs: [...recs].sort((x, y) => {
+          const nx = staffById[x.staff_id]?.name ?? '';
+          const ny = staffById[y.staff_id]?.name ?? '';
+          return nx.localeCompare(ny, 'ko');
+        }),
+      }));
+  }, [monthRecords, staffById]);
 
   // 월간 KPI
   const monthTotalHours = Object.values(summary).reduce((a, s) => a + s.totalHours, 0);
@@ -99,6 +129,23 @@ function AttendanceInner() {
   };
   const nextMonth = () => {
     if (month === 12) { setYear(year + 1); setMonth(1); } else setMonth(month + 1);
+  };
+
+  // 엑셀(CSV) 다운로드 — 선택한 월·매장 기준. 한글 깨짐 방지 BOM 포함.
+  const handleExport = () => {
+    if (monthRecords.length === 0) return;
+    const csv = buildAttendanceCsv(monthRecords, staffById, isOwner && !activeStore);
+    const storeLabel = activeStore ?? '전체';
+    const filename = `근태_${year}-${String(month).padStart(2, '0')}_${storeLabel}.csv`;
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -286,48 +333,99 @@ function AttendanceInner() {
         </div>
       </section>
 
-      {/* 날짜별 합산 (그날 전체 알바 합계) */}
+      {/* 날짜별 · 개인별 기록 (그날 누가 몇 시간 일했는지) */}
       <section style={{ ...S.card, padding: '16px', marginTop: '20px' }}>
-        <div style={{ marginBottom: '12px' }}>
-          <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.accent, marginBottom: '4px' }}>
-            Daily · {year}.{String(month).padStart(2, '0')}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
+          <div>
+            <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.accent, marginBottom: '4px' }}>
+              Daily · {year}.{String(month).padStart(2, '0')}
+            </div>
+            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: C.text }}>날짜별 기록 (개인별)</h2>
           </div>
-          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: C.text }}>날짜별 합산</h2>
+          <button
+            onClick={handleExport}
+            disabled={loading || monthRecords.length === 0}
+            style={{
+              flexShrink: 0,
+              padding: '8px 14px', borderRadius: '8px',
+              border: `1px solid ${C.accent}`,
+              backgroundColor: monthRecords.length === 0 ? 'transparent' : C.accent,
+              color: monthRecords.length === 0 ? C.textFaint : C.bg,
+              fontWeight: 600, fontSize: '13px',
+              cursor: loading || monthRecords.length === 0 ? 'default' : 'pointer',
+              opacity: loading || monthRecords.length === 0 ? 0.5 : 1,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ⬇ 엑셀 다운로드
+          </button>
         </div>
 
         {loading && <div style={{ padding: '20px', textAlign: 'center', color: C.textDim }}>로딩 중...</div>}
 
-        {!loading && dateSummary.length === 0 && (
+        {!loading && dailyGroups.length === 0 && (
           <div style={{ padding: '20px', textAlign: 'center', color: C.textDim, fontSize: '14px' }}>
             이번 달 기록이 없습니다.
           </div>
         )}
 
-        {!loading && dateSummary.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {dateSummary.map((d) => {
-              const wd = kstWeekday(d.work_date);
+        {!loading && dailyGroups.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {dailyGroups.map(({ date, recs }) => {
+              const wd = kstWeekday(date);
               const wdColor = wd === '일' ? C.danger : wd === '토' ? '#3b6fb8' : C.textDim;
-              const open = d.openCount > 0;
               return (
-                <div key={d.work_date} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
-                  padding: '10px 12px', borderRadius: '8px',
-                  border: `1px solid ${open ? C.accent : C.border}`,
-                  backgroundColor: open ? 'rgba(160, 124, 44, 0.06)' : C.bg,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 }}>
-                    <span style={{ ...S.mono, fontSize: '15px', fontWeight: 600, color: C.text }}>
-                      {d.work_date.slice(5)}
+                <div key={date}>
+                  {/* 날짜 헤더 */}
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
+                    <span style={{ ...S.mono, fontSize: '14px', fontWeight: 600, color: C.text }}>
+                      {date.slice(5)}
                     </span>
                     <span style={{ ...S.mono, fontSize: '12px', color: wdColor }}>{wd}</span>
+                    <span style={{ ...S.mono, fontSize: '11px', color: C.textFaint }}>· {recs.length}명</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <span style={{ ...S.mono, fontSize: '12px', color: C.textDim }}>{d.staffCount}명</span>
-                    <span style={{ ...S.mono, fontSize: '14px', fontWeight: 600, color: C.accent, textAlign: 'right' }}>
-                      {formatDuration(d.totalHours)}
-                      {open && <span style={{ color: C.textFaint, fontSize: '11px', fontWeight: 400 }}> · {d.openCount} 근무중</span>}
-                    </span>
+                  {/* 개인별 행 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {recs.map((r) => {
+                      const st = staffById[r.staff_id];
+                      const h = hoursBetween(r.check_in_at, r.check_out_at);
+                      const open = r.check_out_at === null;
+                      return (
+                        <div key={r.id} style={{
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          padding: '9px 12px', borderRadius: '8px',
+                          border: `1px solid ${open ? C.accent : C.border}`,
+                          backgroundColor: open ? 'rgba(160, 124, 44, 0.06)' : C.bg,
+                        }}>
+                          <span style={{
+                            fontSize: '14px', fontWeight: 600,
+                            color: st?.is_active === false ? C.textFaint : C.text,
+                            flexShrink: 0, minWidth: '64px',
+                          }}>
+                            {st?.name ?? '(삭제됨)'}
+                            {st?.is_active === false && (
+                              <span style={{ ...S.mono, fontSize: '9px', color: C.textFaint, marginLeft: '4px' }}>비활성</span>
+                            )}
+                          </span>
+                          {isOwner && (
+                            <span style={{ ...S.mono, fontSize: '10px', color: C.textFaint, flexShrink: 0 }}>
+                              {r.store_name}
+                            </span>
+                          )}
+                          <span style={{ ...S.mono, fontSize: '12px', color: C.textDim, flex: 1, textAlign: 'right' }}>
+                            {kstTimeStr(r.check_in_at)}
+                            <span style={{ color: C.textFaint, margin: '0 4px' }}>→</span>
+                            {formatCheckOut(r.check_in_at, r.check_out_at)}
+                          </span>
+                          <span style={{
+                            ...S.mono, fontSize: '13px', fontWeight: 600,
+                            color: open ? C.accent : C.text, flexShrink: 0, minWidth: '64px', textAlign: 'right',
+                          }}>
+                            {formatDuration(h)}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );

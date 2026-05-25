@@ -8,6 +8,8 @@ import {
   getStaffMonthRecords,
   upsertManual,
   deactivateStaff,
+  renameStaff,
+  deleteStaff,
   hoursBetween,
   formatDuration,
   formatCheckOut,
@@ -31,6 +33,13 @@ export default function StaffDetailModal({
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null); // work_date 편집 중
 
+  // 이름 수정
+  const [displayName, setDisplayName] = useState(staff.name);
+  const [renaming, setRenaming] = useState(false);
+  const [newName, setNewName] = useState(staff.name);
+  const [renameSaving, setRenameSaving] = useState(false);
+  const [renameError, setRenameError] = useState('');
+
   const load = () => {
     setLoading(true);
     getStaffMonthRecords(staff.id, year, month)
@@ -50,7 +59,7 @@ export default function StaffDetailModal({
   };
 
   const handleDeactivate = async () => {
-    if (!confirm(`${staff.name} 알바를 비활성화할까요?\n(기록은 보존됩니다. 목록에서만 숨겨집니다.)`)) return;
+    if (!confirm(`${displayName} 알바를 비활성화할까요?\n(기록은 보존됩니다. 목록에서만 숨겨집니다.)`)) return;
     try {
       await deactivateStaff(staff.id);
       onChanged();
@@ -58,6 +67,43 @@ export default function StaffDetailModal({
     } catch (e) {
       console.error(e);
       alert('비활성화에 실패했습니다.');
+    }
+  };
+
+  const handleRename = async () => {
+    const trimmed = newName.trim();
+    if (!trimmed) { setRenameError('이름을 입력하세요.'); return; }
+    if (trimmed === displayName) { setRenaming(false); return; }
+    setRenameSaving(true);
+    setRenameError('');
+    try {
+      await renameStaff(staff.id, trimmed);
+      setDisplayName(trimmed);
+      setRenaming(false);
+      onChanged(); // 부모 목록 이름 갱신
+    } catch (e) {
+      console.error(e);
+      setRenameError('이름 수정에 실패했습니다.');
+    } finally {
+      setRenameSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const ok = confirm(
+      `${displayName} 알바를 완전히 삭제할까요?\n\n` +
+      `이 알바의 모든 출퇴근 기록도 함께 영구 삭제됩니다.\n` +
+      `되돌릴 수 없습니다.\n\n` +
+      `기록을 남기고 목록에서만 숨기려면 '비활성화'를 사용하세요.`
+    );
+    if (!ok) return;
+    try {
+      await deleteStaff(staff.id);
+      onChanged();
+      onClose();
+    } catch (e) {
+      console.error(e);
+      alert('삭제에 실패했습니다.\n(권한 또는 마이그레이션 004 적용 여부를 확인하세요.)');
     }
   };
 
@@ -89,9 +135,60 @@ export default function StaffDetailModal({
             <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.3em', color: C.accent }}>
               Staff · {year}.{String(month).padStart(2, '0')}
             </div>
-            <div style={{ fontSize: '22px', fontWeight: 600, color: C.text, marginTop: '2px' }}>
-              {staff.name}
-            </div>
+            {!renaming ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                <div style={{ fontSize: '22px', fontWeight: 600, color: C.text }}>
+                  {displayName}
+                </div>
+                <button
+                  onClick={() => { setNewName(displayName); setRenameError(''); setRenaming(true); }}
+                  style={{
+                    border: `1px solid ${C.border}`, backgroundColor: 'transparent',
+                    color: C.textDim, fontSize: '11px', padding: '3px 8px',
+                    borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  ✎ 이름수정
+                </button>
+              </div>
+            ) : (
+              <div style={{ marginTop: '6px' }}>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <input
+                    style={{ ...S.input, fontSize: '15px', maxWidth: '170px' }}
+                    value={newName}
+                    autoFocus
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleRename();
+                      if (e.key === 'Escape') setRenaming(false);
+                    }}
+                  />
+                  <button
+                    onClick={handleRename}
+                    disabled={renameSaving}
+                    style={{
+                      padding: '8px 12px', borderRadius: '6px', border: 'none',
+                      backgroundColor: C.accent, color: C.bg, fontWeight: 600,
+                      fontSize: '13px', cursor: renameSaving ? 'default' : 'pointer', opacity: renameSaving ? 0.6 : 1,
+                    }}
+                  >
+                    {renameSaving ? '...' : '저장'}
+                  </button>
+                  <button
+                    onClick={() => setRenaming(false)}
+                    style={{
+                      padding: '8px 10px', borderRadius: '6px',
+                      border: `1px solid ${C.border}`, backgroundColor: 'transparent',
+                      color: C.textDim, fontSize: '13px', cursor: 'pointer',
+                    }}
+                  >
+                    취소
+                  </button>
+                </div>
+                {renameError && <div style={{ color: C.danger, fontSize: '12px', marginTop: '6px' }}>{renameError}</div>}
+              </div>
+            )}
             <div style={{ ...S.mono, fontSize: '11px', color: C.textDim, marginTop: '4px' }}>
               {staff.store_name}
             </div>
@@ -226,17 +323,27 @@ export default function StaffDetailModal({
           </div>
         )}
 
-        {/* 비활성화 */}
-        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: `1px solid ${C.border}` }}>
+        {/* 비활성화 / 완전 삭제 */}
+        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: `1px solid ${C.border}`, display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           <button
             onClick={handleDeactivate}
             style={{
-              border: `1px solid ${C.danger}`, backgroundColor: 'transparent',
-              color: C.danger, fontSize: '12px', padding: '8px 14px',
+              border: `1px solid ${C.border}`, backgroundColor: 'transparent',
+              color: C.textDim, fontSize: '12px', padding: '8px 14px',
               borderRadius: '8px', cursor: 'pointer',
             }}
           >
-            알바 비활성화 (기록 보존)
+            비활성화 (기록 보존)
+          </button>
+          <button
+            onClick={handleDelete}
+            style={{
+              border: `1px solid ${C.danger}`, backgroundColor: C.danger,
+              color: '#fff', fontSize: '12px', fontWeight: 600, padding: '8px 14px',
+              borderRadius: '8px', cursor: 'pointer',
+            }}
+          >
+            완전 삭제 (기록까지)
           </button>
         </div>
       </div>
