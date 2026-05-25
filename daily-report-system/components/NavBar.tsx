@@ -61,17 +61,31 @@ export default function NavBar() {
                   }}>
                     내 매장
                   </Link>
+                  <Link href="/attendance" style={{
+                    color: C.textDim, fontSize: '12px',
+                    padding: '6px 8px', whiteSpace: 'nowrap',
+                  }}>
+                    근태
+                  </Link>
                 </>
               )}
 
-              {/* 사장: 대시보드 */}
+              {/* 사장: 대시보드 + 근태 */}
               {profile.role === 'owner' && (
-                <Link href="/dashboard" style={{
-                  color: C.textDim, fontSize: '12px',
-                  padding: '6px 8px', whiteSpace: 'nowrap',
-                }}>
-                  대시보드
-                </Link>
+                <>
+                  <Link href="/dashboard" style={{
+                    color: C.textDim, fontSize: '12px',
+                    padding: '6px 8px', whiteSpace: 'nowrap',
+                  }}>
+                    대시보드
+                  </Link>
+                  <Link href="/attendance" style={{
+                    color: C.textDim, fontSize: '12px',
+                    padding: '6px 8px', whiteSpace: 'nowrap',
+                  }}>
+                    근태
+                  </Link>
+                </>
               )}
 
               <span style={{
