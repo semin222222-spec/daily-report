@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { C, S } from '@/lib/theme';
+import ManualForm from './ManualForm';
 import {
   AttendanceRecord,
   Staff,
   getStaffMonthRecords,
-  upsertManual,
   deactivateStaff,
   renameStaff,
   deleteStaff,
+  deleteRecord,
   hoursBetween,
   formatDuration,
   formatCheckOut,
@@ -104,6 +105,19 @@ export default function StaffDetailModal({
     } catch (e) {
       console.error(e);
       alert('삭제에 실패했습니다.\n(권한 또는 마이그레이션 004 적용 여부를 확인하세요.)');
+    }
+  };
+
+  // 기록 1건 삭제 (잘못 누른 출퇴근 정정용)
+  const handleDeleteRecord = async (r: AttendanceRecord) => {
+    if (!confirm(`${r.work_date} 기록을 삭제할까요?\n되돌릴 수 없습니다.`)) return;
+    try {
+      await deleteRecord(r.id);
+      if (editing === r.work_date) setEditing(null);
+      afterMutation();
+    } catch (e) {
+      console.error(e);
+      alert('기록 삭제에 실패했습니다.\n(권한 또는 마이그레이션 005 적용 여부를 확인하세요.)');
     }
   };
 
@@ -308,6 +322,17 @@ export default function StaffDetailModal({
                     >
                       {isEditing ? '닫기' : '수정'}
                     </button>
+                    <button
+                      onClick={() => handleDeleteRecord(r)}
+                      title="이 날짜 기록 삭제"
+                      style={{
+                        border: `1px solid ${C.danger}`, backgroundColor: 'transparent',
+                        color: C.danger, fontSize: '11px', padding: '4px 8px',
+                        borderRadius: '6px', cursor: 'pointer', flexShrink: 0,
+                      }}
+                    >
+                      삭제
+                    </button>
                   </div>
                   {isEditing && (
                     <ManualForm
@@ -351,123 +376,3 @@ export default function StaffDetailModal({
   );
 }
 
-// ============================================
-// 수동 입력/수정 폼 (신규 또는 기존 record 편집)
-// ============================================
-function ManualForm({
-  staff,
-  record,
-  onCancel,
-  onSaved,
-}: {
-  staff: Staff;
-  record?: AttendanceRecord;
-  onCancel: () => void;
-  onSaved: () => void;
-}) {
-  const [date, setDate] = useState(record?.work_date ?? todayKst());
-  const [inTime, setInTime] = useState(record ? kstTimeStr(record.check_in_at) : '18:00');
-  const [outTime, setOutTime] = useState(
-    record?.check_out_at ? kstTimeStr(record.check_out_at) : ''
-  );
-  const [note, setNote] = useState(record?.note ?? '');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const save = async () => {
-    if (!date || !inTime) {
-      setError('날짜와 출근시간은 필수입니다.');
-      return;
-    }
-    setSaving(true);
-    setError('');
-    try {
-      await upsertManual({
-        store_name: staff.store_name,
-        staff_id: staff.id,
-        work_date: date,
-        check_in_time: inTime,
-        check_out_time: outTime || null,
-        note,
-      });
-      onSaved();
-    } catch (e) {
-      console.error(e);
-      setError('저장에 실패했습니다.');
-      setSaving(false);
-    }
-  };
-
-  const overnightHint = outTime && outTime <= inTime;
-
-  return (
-    <div style={{
-      margin: '8px 0', padding: '14px', borderRadius: '10px',
-      backgroundColor: C.bgDeep, border: `1px solid ${C.border}`,
-    }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
-        <div>
-          <label style={S.label}>날짜 (출근일)</label>
-          <input
-            style={S.input} type="date" value={date}
-            disabled={!!record}  // 기존 기록은 날짜 고정(unique 키)
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          <div>
-            <label style={S.label}>출근</label>
-            <input style={S.input} type="time" value={inTime} onChange={(e) => setInTime(e.target.value)} />
-          </div>
-          <div>
-            <label style={S.label}>퇴근 (빈칸=근무중)</label>
-            <input style={S.input} type="time" value={outTime} onChange={(e) => setOutTime(e.target.value)} />
-          </div>
-        </div>
-        {overnightHint && (
-          <div style={{ ...S.mono, fontSize: '11px', color: C.warning }}>
-            ⁺¹ 퇴근이 출근보다 일러 다음날(새벽 퇴근)로 저장됩니다.
-          </div>
-        )}
-        <div>
-          <label style={S.label}>메모 (선택)</label>
-          <input style={S.input} value={note} onChange={(e) => setNote(e.target.value)} placeholder="예: 지각, 조퇴 사유" />
-        </div>
-      </div>
-
-      {error && (
-        <div style={{ marginTop: '10px', color: C.danger, fontSize: '12px' }}>{error}</div>
-      )}
-
-      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-        <button
-          onClick={save}
-          disabled={saving}
-          style={{
-            flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
-            backgroundColor: C.accent, color: C.bg, fontWeight: 600,
-            fontSize: '13px', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
-          }}
-        >
-          {saving ? '저장 중...' : '저장'}
-        </button>
-        <button
-          onClick={onCancel}
-          style={{
-            padding: '10px 16px', borderRadius: '8px',
-            border: `1px solid ${C.border}`, backgroundColor: 'transparent',
-            color: C.textDim, fontSize: '13px', cursor: 'pointer',
-          }}
-        >
-          취소
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function todayKst(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date());
-}

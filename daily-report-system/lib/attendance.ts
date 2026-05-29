@@ -309,6 +309,52 @@ export async function upsertManual(input: {
   if (error) throw error;
 }
 
+// 기존 기록(id)을 직접 수정. 날짜(work_date) 변경도 허용한다.
+//  - 새벽 퇴근 자동 보정(퇴근 <= 출근이면 다음날로)
+//  - 다른 기록과 (staff_id, work_date) 가 겹치면 23505 (unique_violation) 발생
+//    → 호출 측에서 안내. (예: "그 날짜에 이미 다른 기록이 있습니다")
+export async function updateRecord(
+  recordId: string,
+  input: {
+    work_date: string;
+    check_in_time: string;
+    check_out_time: string | null;
+    note?: string;
+  }
+): Promise<void> {
+  const checkInISO = combineKst(input.work_date, input.check_in_time);
+  let checkOutISO: string | null = null;
+  if (input.check_out_time) {
+    checkOutISO = combineKst(input.work_date, input.check_out_time);
+    if (new Date(checkOutISO).getTime() <= new Date(checkInISO).getTime()) {
+      const next = new Date(new Date(checkOutISO).getTime() + 24 * 3_600_000);
+      checkOutISO = next.toISOString();
+    }
+  }
+
+  const { error } = await supabase
+    .from('attendance_records')
+    .update({
+      work_date: input.work_date,
+      check_in_at: checkInISO,
+      check_out_at: checkOutISO,
+      is_manual: true,
+      modified_by_admin: true,
+      modified_at: new Date().toISOString(),
+      note: input.note ?? '',
+    })
+    .eq('id', recordId);
+  if (error) throw error;
+}
+
+// 기록 1건 삭제(잘못 누른 출퇴근 정정용).
+//  - 005_attendance_record_delete.sql 의 delete_attendance_record RPC 필요.
+//  - 권한 검사는 RPC 내부에서 (owner 전체 / manager 자기 매장).
+export async function deleteRecord(recordId: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_attendance_record', { p_record_id: recordId });
+  if (error) throw error;
+}
+
 // ============================================
 // 집계
 // ============================================

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import RequireRole from '@/components/RequireRole';
 import AddStaffModal from '@/components/attendance/AddStaffModal';
 import StaffDetailModal from '@/components/attendance/StaffDetailModal';
+import ManualForm from '@/components/attendance/ManualForm';
 import { useAuth } from '@/lib/auth';
 import { C, S } from '@/lib/theme';
 import {
@@ -16,6 +17,7 @@ import {
   getMonthRecords,
   getTodayRecords,
   getOpenRecords,
+  deleteRecord,
   summarizeByStaff,
   buildAttendanceCsv,
   formatDuration,
@@ -58,6 +60,8 @@ function AttendanceInner() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [detailStaff, setDetailStaff] = useState<Staff | null>(null);
+  // 날짜별 뷰에서 인라인 편집 중인 기록 id
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
   const reload = () => {
     setLoading(true);
@@ -129,6 +133,20 @@ function AttendanceInner() {
   };
   const nextMonth = () => {
     if (month === 12) { setYear(year + 1); setMonth(1); } else setMonth(month + 1);
+  };
+
+  // 기록 1건 삭제 (잘못 누른 출퇴근 정정용)
+  const handleDeleteRecord = async (r: AttendanceRecord) => {
+    const name = staffById[r.staff_id]?.name ?? '';
+    if (!confirm(`${name} · ${r.work_date} 기록을 삭제할까요?\n되돌릴 수 없습니다.`)) return;
+    try {
+      await deleteRecord(r.id);
+      if (editingRecordId === r.id) setEditingRecordId(null);
+      reload();
+    } catch (e) {
+      console.error(e);
+      alert('기록 삭제에 실패했습니다.\n(권한 또는 마이그레이션 005 적용 여부를 확인하세요.)');
+    }
   };
 
   // 엑셀(CSV) 다운로드 — 선택한 월·매장 기준. 한글 깨짐 방지 BOM 포함.
@@ -390,39 +408,73 @@ function AttendanceInner() {
                       const st = staffById[r.staff_id];
                       const h = hoursBetween(r.check_in_at, r.check_out_at);
                       const open = r.check_out_at === null;
+                      const isEditing = editingRecordId === r.id;
                       return (
-                        <div key={r.id} style={{
-                          display: 'flex', alignItems: 'center', gap: '10px',
-                          padding: '9px 12px', borderRadius: '8px',
-                          border: `1px solid ${open ? C.accent : C.border}`,
-                          backgroundColor: open ? 'rgba(160, 124, 44, 0.06)' : C.bg,
-                        }}>
-                          <span style={{
-                            fontSize: '14px', fontWeight: 600,
-                            color: st?.is_active === false ? C.textFaint : C.text,
-                            flexShrink: 0, minWidth: '64px',
+                        <div key={r.id}>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            padding: '9px 12px', borderRadius: '8px',
+                            border: `1px solid ${open ? C.accent : C.border}`,
+                            backgroundColor: open ? 'rgba(160, 124, 44, 0.06)' : C.bg,
                           }}>
-                            {st?.name ?? '(삭제됨)'}
-                            {st?.is_active === false && (
-                              <span style={{ ...S.mono, fontSize: '9px', color: C.textFaint, marginLeft: '4px' }}>비활성</span>
-                            )}
-                          </span>
-                          {isOwner && (
-                            <span style={{ ...S.mono, fontSize: '10px', color: C.textFaint, flexShrink: 0 }}>
-                              {r.store_name}
+                            <span style={{
+                              fontSize: '14px', fontWeight: 600,
+                              color: st?.is_active === false ? C.textFaint : C.text,
+                              flexShrink: 0, minWidth: '64px',
+                            }}>
+                              {st?.name ?? '(삭제됨)'}
+                              {st?.is_active === false && (
+                                <span style={{ ...S.mono, fontSize: '9px', color: C.textFaint, marginLeft: '4px' }}>비활성</span>
+                              )}
                             </span>
+                            {isOwner && (
+                              <span style={{ ...S.mono, fontSize: '10px', color: C.textFaint, flexShrink: 0 }}>
+                                {r.store_name}
+                              </span>
+                            )}
+                            <span style={{ ...S.mono, fontSize: '12px', color: C.textDim, flex: 1, textAlign: 'right' }}>
+                              {kstTimeStr(r.check_in_at)}
+                              <span style={{ color: C.textFaint, margin: '0 4px' }}>→</span>
+                              {formatCheckOut(r.check_in_at, r.check_out_at)}
+                            </span>
+                            <span style={{
+                              ...S.mono, fontSize: '13px', fontWeight: 600,
+                              color: open ? C.accent : C.text, flexShrink: 0, minWidth: '56px', textAlign: 'right',
+                            }}>
+                              {formatDuration(h)}
+                            </span>
+                            <button
+                              onClick={() => setEditingRecordId(isEditing ? null : r.id)}
+                              disabled={!st}
+                              style={{
+                                border: `1px solid ${C.border}`, backgroundColor: 'transparent',
+                                color: C.textDim, fontSize: '11px', padding: '4px 8px',
+                                borderRadius: '6px', cursor: st ? 'pointer' : 'not-allowed',
+                                flexShrink: 0, opacity: st ? 1 : 0.5,
+                              }}
+                            >
+                              {isEditing ? '닫기' : '수정'}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRecord(r)}
+                              title="이 기록 삭제"
+                              style={{
+                                border: `1px solid ${C.danger}`, backgroundColor: 'transparent',
+                                color: C.danger, fontSize: '11px', padding: '4px 8px',
+                                borderRadius: '6px', cursor: 'pointer', flexShrink: 0,
+                              }}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                          {isEditing && st && (
+                            <ManualForm
+                              staff={st}
+                              record={r}
+                              onCancel={() => setEditingRecordId(null)}
+                              onSaved={() => { setEditingRecordId(null); reload(); }}
+                            />
                           )}
-                          <span style={{ ...S.mono, fontSize: '12px', color: C.textDim, flex: 1, textAlign: 'right' }}>
-                            {kstTimeStr(r.check_in_at)}
-                            <span style={{ color: C.textFaint, margin: '0 4px' }}>→</span>
-                            {formatCheckOut(r.check_in_at, r.check_out_at)}
-                          </span>
-                          <span style={{
-                            ...S.mono, fontSize: '13px', fontWeight: 600,
-                            color: open ? C.accent : C.text, flexShrink: 0, minWidth: '64px', textAlign: 'right',
-                          }}>
-                            {formatDuration(h)}
-                          </span>
                         </div>
                       );
                     })}
