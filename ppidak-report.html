@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주식회사 삐딱 · 매장정산</title>
+<style>
+  :root{
+    --brand-ink:#191512;
+    --brand:#f0542d;          /* 삐딱 시그니처 */
+    --brand-deep:#c33c17;
+    --ppidak:#f0542d;
+    --woosam:#d98324;
+    --ssuk:#4b7f52;
+    /* app surfaces */
+    --page:#f6f5f2;
+    --surface:#ffffff;
+    --line:#e7e4dd;
+    --line-soft:#efece5;
+    --ink:#171310;
+    --ink-2:#5c574f;
+    --muted:#8f897f;
+    /* chart palette (dataviz 검증본) */
+    --s1:#2a78d6; --s2:#008300; --s3:#eda100; --s4:#eb6834; --s5:#4a3aa7;
+    --good:#0ca30c; --warn:#fab219; --bad:#d03b3b;
+    --radius:16px;
+    --shadow:0 1px 2px rgba(20,16,12,.05), 0 8px 24px rgba(20,16,12,.06);
+    font-family:system-ui,-apple-system,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--page);color:var(--ink);-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer}
+  .hidden{display:none !important}
+  .tnum{font-variant-numeric:tabular-nums}
+
+  /* ============ LANDING ============ */
+  #landing{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 20px;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(240,84,45,.22), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(217,131,36,.16), transparent 55%),
+      var(--brand-ink);
+  }
+  .land-card{width:100%;max-width:940px;display:grid;grid-template-columns:1.15fr .85fr;
+    background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);
+    border-radius:24px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .land-left{padding:46px 42px;color:#fff}
+  .corp{font-size:13px;letter-spacing:.22em;color:rgba(255,255,255,.55);font-weight:600;margin-bottom:22px}
+  .logo-ppidak{display:inline-flex;align-items:baseline;gap:2px;font-weight:900;line-height:1;
+    font-size:76px;letter-spacing:-.04em}
+  .logo-ppidak .tilt{display:inline-block;transform:skewX(-11deg) rotate(-4deg);color:var(--brand)}
+  .logo-ppidak .dot{color:var(--brand);font-size:76px}
+  .land-tag{margin-top:14px;color:rgba(255,255,255,.72);font-size:15px;line-height:1.6}
+  .stores-row{display:flex;gap:12px;margin-top:34px;flex-wrap:wrap}
+  .store-chip{display:flex;align-items:center;gap:9px;padding:9px 14px 9px 10px;border-radius:999px;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+  .store-chip .badge{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+    font-weight:800;font-size:13px;color:#fff}
+  .store-chip.main{background:rgba(240,84,45,.16);border-color:rgba(240,84,45,.45)}
+  .store-chip .nm{color:rgba(255,255,255,.85);font-size:13.5px;font-weight:600}
+  .store-chip .sub{color:rgba(255,255,255,.45);font-size:11px}
+
+  .land-right{background:#fff;padding:42px 38px;display:flex;flex-direction:column;justify-content:center}
+  .land-right h2{margin:0 0 4px;font-size:20px}
+  .land-right p.hint{margin:0 0 24px;color:var(--muted);font-size:13px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12.5px;color:var(--ink-2);font-weight:600;margin-bottom:6px}
+  .field input{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:11px;font-size:15px;background:#fbfaf8}
+  .field input:focus{outline:none;border-color:var(--brand);background:#fff;box-shadow:0 0 0 3px rgba(240,84,45,.12)}
+  .btn-login{width:100%;margin-top:8px;padding:13px;border:0;border-radius:11px;background:var(--brand);
+    color:#fff;font-weight:800;font-size:15px;letter-spacing:.01em}
+  .btn-login:hover{background:var(--brand-deep)}
+  .demo-accts{margin-top:20px;border-top:1px dashed var(--line);padding-top:16px}
+  .demo-accts .dh{font-size:11.5px;color:var(--muted);margin-bottom:8px;font-weight:700;letter-spacing:.02em}
+  .demo-accts button{display:flex;justify-content:space-between;width:100%;gap:8px;text-align:left;
+    background:#f7f5f1;border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin-bottom:6px;font-size:12.5px;color:var(--ink-2)}
+  .demo-accts button:hover{border-color:var(--brand);color:var(--ink)}
+  .demo-accts button b{color:var(--ink)}
+  .login-err{color:var(--bad);font-size:12.5px;margin-top:8px;min-height:16px}
+
+  /* ============ APP SHELL ============ */
+  #app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+  .side{background:var(--brand-ink);color:#fff;padding:20px 16px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .side .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
+  .side .brand .mk{font-weight:900;font-size:26px;letter-spacing:-.04em}
+  .side .brand .mk .tilt{display:inline-block;transform:skewX(-11deg) rotate(-4deg);color:var(--brand)}
+  .side .brand small{display:block;color:rgba(255,255,255,.45);font-size:10.5px;letter-spacing:.15em;font-weight:600}
+  .nav-sec{font-size:10.5px;letter-spacing:.16em;color:rgba(255,255,255,.35);font-weight:700;margin:16px 10px 8px}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;color:rgba(255,255,255,.72);
+    font-size:14px;font-weight:600;border:0;background:transparent;width:100%;text-align:left;margin-bottom:2px}
+  .nav-item .ico{width:18px;text-align:center;font-size:15px}
+  .nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav-item.active{background:var(--brand);color:#fff}
+  .side .foot{margin-top:auto;border-top:1px solid rgba(255,255,255,.1);padding-top:12px}
+  .side .foot .who{font-size:12.5px;color:rgba(255,255,255,.8);padding:4px 10px}
+  .side .foot .who b{color:#fff}
+  .side .foot button{margin-top:6px;width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    color:rgba(255,255,255,.8);border-radius:9px;padding:9px;font-size:13px;font-weight:600}
+  .side .foot button:hover{background:rgba(255,255,255,.12);color:#fff}
+
+  .main{min-width:0;display:flex;flex-direction:column}
+  .topbar{position:sticky;top:0;z-index:5;background:rgba(246,245,242,.85);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:14px 26px;display:flex;align-items:center;gap:16px}
+  .topbar h1{font-size:19px;margin:0;font-weight:800}
+  .topbar .date{color:var(--muted);font-size:13px}
+  .store-switch{margin-left:auto;display:flex;gap:6px;align-items:center;background:#fff;border:1px solid var(--line);
+    border-radius:12px;padding:4px}
+  .store-switch button{border:0;background:transparent;padding:7px 13px;border-radius:9px;font-size:13px;font-weight:700;color:var(--ink-2);display:flex;align-items:center;gap:7px}
+  .store-switch button .badge{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:800}
+  .store-switch button.active{background:var(--page);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+  .content{padding:24px 26px 60px;max-width:1180px;width:100%}
+
+  /* cards / tiles */
+  .grid{display:grid;gap:16px}
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  .tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;box-shadow:var(--shadow)}
+  .tile .lab{font-size:12.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+  .tile .val{font-size:27px;font-weight:800;margin-top:8px;letter-spacing:-.02em}
+  .tile .val small{font-size:15px;font-weight:700;color:var(--ink-2)}
+  .delta{font-size:12.5px;font-weight:700;margin-top:6px;display:inline-flex;align-items:center;gap:4px}
+  .delta.up{color:var(--good)} .delta.down{color:var(--bad)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 2px;font-size:15.5px}
+  .card .csub{color:var(--muted);font-size:12.5px;margin:0 0 16px}
+  .row2{grid-template-columns:1.5fr 1fr}
+  .row-eq{grid-template-columns:1fr 1fr}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{padding:10px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--muted);font-weight:600;font-size:12px;border-bottom:1px solid var(--line);padding-bottom:8px}
+  tbody td{border-bottom:1px solid var(--line-soft)}
+  tbody tr:last-child td{border-bottom:0}
+  .pl-row td{padding:9px 8px}
+  .pl-total td{font-weight:800;border-top:2px solid var(--line);border-bottom:0}
+  .pos{color:var(--good)} .neg{color:var(--bad)}
+
+  .goal{display:flex;align-items:center;gap:14px;margin-top:4px}
+  .bar{flex:1;height:10px;border-radius:6px;background:var(--line-soft);overflow:hidden}
+  .bar > span{display:block;height:100%;border-radius:6px;background:var(--brand)}
+
+  /* forms */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+  .fld label{display:block;font-size:12.5px;color:var(--ink-2);font-weight:600;margin-bottom:6px}
+  .fld input,.fld select,.fld textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:#fbfaf8;font-family:inherit}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--brand);background:#fff;box-shadow:0 0 0 3px rgba(240,84,45,.1)}
+  .fld .unit{position:relative}
+  .btn{padding:11px 18px;border:0;border-radius:10px;background:var(--brand);color:#fff;font-weight:800;font-size:14px}
+  .btn:hover{background:var(--brand-deep)}
+  .btn.ghost{background:#fff;color:var(--ink-2);border:1px solid var(--line)}
+  .btn.ghost:hover{border-color:var(--brand);color:var(--ink);background:#fff}
+  .btn-row{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+
+  /* tasks */
+  .task{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line-soft)}
+  .task input[type=checkbox]{width:18px;height:18px;accent-color:var(--brand)}
+  .task .t-txt{flex:1;font-size:14px}
+  .task.done .t-txt{color:var(--muted);text-decoration:line-through}
+  .task .who{font-size:11.5px;color:var(--muted);background:var(--line-soft);padding:3px 8px;border-radius:999px}
+  .add-task{display:flex;gap:8px;margin-top:14px}
+  .add-task input{flex:1;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:#fbfaf8}
+
+  /* reviews */
+  .rv{display:flex;gap:13px;padding:15px 4px;border-bottom:1px solid var(--line-soft)}
+  .rv .src{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0}
+  .rv .src.naver{background:#03c75a} .rv .src.kakao{background:#ffe812;color:#3a1d1d}
+  .rv .body{flex:1;min-width:0}
+  .rv .top{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+  .rv .stars{color:var(--warn);font-size:13px;letter-spacing:1px}
+  .rv .txt{font-size:14px;margin:5px 0 0;line-height:1.55}
+  .rv .new{background:var(--brand);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px}
+
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .pill.g{background:rgba(12,163,12,.12);color:#0a7d0a}
+  .pill.w{background:rgba(240,84,45,.12);color:var(--brand-deep)}
+  .section-head{display:flex;align-items:center;gap:10px;margin:26px 2px 12px}
+  .section-head h2{font-size:15px;margin:0;color:var(--ink-2)}
+  .adminonly-tag{font-size:10.5px;font-weight:700;color:var(--brand-deep);background:rgba(240,84,45,.1);padding:2px 8px;border-radius:999px}
+
+  @media(max-width:880px){
+    .land-card{grid-template-columns:1fr}
+    .land-left{padding:34px 28px}.logo-ppidak,.logo-ppidak .dot{font-size:58px}
+    #app{grid-template-columns:1fr}
+    .side{position:fixed;left:-260px;transition:left .25s;z-index:50;width:248px}
+    .side.open{left:0}
+    .kpis{grid-template-columns:1fr 1fr}
+    .row2,.row-eq,.form-grid{grid-template-columns:1fr}
+    .menu-btn{display:inline-flex !important}
+  }
+  .menu-btn{display:none;background:#fff;border:1px solid var(--line);border-radius:9px;width:38px;height:38px;font-size:18px;align-items:center;justify-content:center}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;display:none}
+  .scrim.show{display:block}
+</style>
+</head>
+<body>
+
+<!-- ================= LANDING ================= -->
+<section id="landing">
+  <div class="land-card">
+    <div class="land-left">
+      <div class="corp">주식회사 삐딱</div>
+      <div class="logo-ppidak"><span class="tilt">삐딱</span><span class="dot">.</span></div>
+      <p class="land-tag">삐딱, 우삼집, 쑥고개 — 세 매장의 매출과 손익을<br>한 곳에서 관리하는 삐딱 전용 정산 시스템</p>
+      <div class="stores-row">
+        <div class="store-chip main"><div class="badge" style="background:var(--ppidak)">삐</div><div><div class="nm">삐딱</div><div class="sub">본점</div></div></div>
+        <div class="store-chip"><div class="badge" style="background:var(--woosam)">우</div><div><div class="nm">우삼집</div><div class="sub">가맹</div></div></div>
+        <div class="store-chip"><div class="badge" style="background:var(--ssuk)">쑥</div><div><div class="nm">쑥고개</div><div class="sub">가맹</div></div></div>
+      </div>
+    </div>
+    <div class="land-right">
+      <h2>로그인</h2>
+      <p class="hint">매장 계정으로 로그인하면 해당 매장으로 들어갑니다.</p>
+      <div class="field"><label>아이디</label><input id="in-id" placeholder="아이디" autocomplete="off"></div>
+      <div class="field"><label>비밀번호</label><input id="in-pw" type="password" placeholder="비밀번호"></div>
+      <button class="btn-login" onclick="tryLogin()">로그인</button>
+      <div class="login-err" id="login-err"></div>
+      <div class="demo-accts">
+        <div class="dh">데모 계정 (클릭하면 자동 입력)</div>
+        <button onclick="fill('admin','1234')"><span><b>admin</b> · 오너/전체관리자</span><span>모든 매장</span></button>
+        <button onclick="fill('ppidak','1234')"><span><b>ppidak</b> · 삐딱 점장</span><span>삐딱만</span></button>
+        <button onclick="fill('woosam','1234')"><span><b>woosam</b> · 우삼집 점장</span><span>우삼집만</span></button>
+        <button onclick="fill('ssuk','1234')"><span><b>ssuk</b> · 쑥고개 점장</span><span>쑥고개만</span></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <div class="scrim" id="scrim" onclick="toggleSide()"></div>
+  <aside class="side" id="side">
+    <div class="brand">
+      <div><div class="mk"><span class="tilt">삐딱</span></div><small>DAILY REPORT</small></div>
+    </div>
+    <div class="nav-sec">매장정산</div>
+    <nav id="nav"></nav>
+    <div class="foot">
+      <div class="who">👤 <b id="who-name">—</b><br><span id="who-role" style="color:rgba(255,255,255,.5);font-size:11px"></span></div>
+      <button onclick="logout()">로그아웃</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="toggleSide()">☰</button>
+      <div>
+        <h1 id="view-title">대시보드</h1>
+        <div class="date" id="today"></div>
+      </div>
+      <div class="store-switch" id="store-switch"></div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script>
+/* ---------------- data ---------------- */
+const STORES = {
+  ppidak:{name:"삐딱", tag:"본점", color:"var(--ppidak)", badge:"삐"},
+  woosam:{name:"우삼집", tag:"가맹", color:"var(--woosam)", badge:"우"},
+  ssuk:{name:"쑥고개", tag:"가맹", color:"var(--ssuk)", badge:"쑥"},
+};
+const ACCOUNTS = {
+  admin:{pw:"1234", role:"owner", name:"세민 (오너)", stores:["ppidak","woosam","ssuk"]},
+  ppidak:{pw:"1234", role:"manager", name:"삐딱 점장", stores:["ppidak"]},
+  woosam:{pw:"1234", role:"manager", name:"우삼집 점장", stores:["woosam"]},
+  ssuk:{pw:"1234", role:"manager", name:"쑥고개 점장", stores:["ssuk"]},
+};
+// mock numbers per store
+const DATA = {
+  ppidak:{sales:4820000, cost:1590000, labor:980000, fixed:640000, guests:214, goal:150000000, mtd:96400000, prevSales:4210000,
+    trend:[3.9,4.2,4.0,4.6,5.1,6.2,5.4].map(v=>v*1e6)},
+  woosam:{sales:3140000, cost:1130000, labor:720000, fixed:480000, guests:158, goal:95000000, mtd:61200000, prevSales:3260000,
+    trend:[2.8,3.0,2.9,3.1,3.4,4.0,3.6].map(v=>v*1e6)},
+  ssuk:{sales:2010000, cost:690000, labor:540000, fixed:360000, guests:97, goal:62000000, mtd:39800000, prevSales:1880000,
+    trend:[1.7,1.9,2.0,1.8,2.1,2.6,2.2].map(v=>v*1e6)},
+};
+const REVIEWS = {
+  ppidak:[
+    {src:"naver",name:"김**",star:5,txt:"여기 삼겹살 진짜 미쳤어요… 사장님도 친절하고 재방문 각!",time:"방금 전",new:true},
+    {src:"kakao",name:"이**",star:4,txt:"분위기 좋고 맛있어요. 주차가 조금 아쉬웠어요.",time:"1시간 전",new:true},
+    {src:"naver",name:"박**",star:5,txt:"단체로 갔는데 세팅 빠르고 좋았습니다.",time:"어제"},
+  ],
+  woosam:[
+    {src:"naver",name:"최**",star:5,txt:"우삼집 국물 끝내줍니다. 또 올게요!",time:"3시간 전",new:true},
+    {src:"kakao",name:"정**",star:3,txt:"맛은 좋은데 웨이팅이 길어요.",time:"어제"},
+  ],
+  ssuk:[
+    {src:"naver",name:"한**",star:5,txt:"쑥고개 조용하고 정갈해서 부모님 모시고 오기 좋아요.",time:"2시간 전",new:true},
+  ],
+};
+const TASKS = {
+  ppidak:[{t:"홀 에어컨 필터 청소",done:false,who:"홀"},{t:"주류 재고 확인 후 발주",done:false,who:"주방"},{t:"포스 마감 정산",done:true,who:"점장"}],
+  woosam:[{t:"신메뉴 시식 준비",done:false,who:"주방"},{t:"배달 리뷰 답글 달기",done:false,who:"점장"}],
+  ssuk:[{t:"주차장 안내판 교체",done:false,who:"홀"}],
+};
+const STAFF = {
+  ppidak:[{n:"김정민",role:"주방",type:"월급",amt:2600000},{n:"이서준",role:"홀",type:"시급",amt:11000},{n:"박하나",role:"홀",type:"시급",amt:10500}],
+  woosam:[{n:"최윤",role:"주방",type:"월급",amt:2500000},{n:"정우",role:"홀",type:"시급",amt:10500}],
+  ssuk:[{n:"한별",role:"주방",type:"월급",amt:2400000},{n:"조은",role:"홀",type:"시급",amt:10000}],
+};
+
+/* ---------------- state ---------------- */
+let USER=null, STORE=null;
+const won = n => "₩"+Math.round(n).toLocaleString("ko-KR");
+const wonMan = n => (n/10000).toLocaleString("ko-KR",{maximumFractionDigits:0})+"만";
+
+const MENU=[
+  {id:"dash", ico:"📊", label:"대시보드"},
+  {id:"close", ico:"📝", label:"일마감 입력"},
+  {id:"daily", ico:"📄", label:"일일 보고서"},
+  {id:"month", ico:"📅", label:"월정산"},
+  {id:"labor", ico:"👥", label:"인건비"},
+  {id:"todo", ico:"✅", label:"오늘 할일"},
+  {id:"review", ico:"⭐", label:"리뷰 모아보기"},
+  {id:"settings", ico:"⚙️", label:"설정"},
+];
+
+/* ---------------- login ---------------- */
+function fill(id,pw){document.getElementById("in-id").value=id;document.getElementById("in-pw").value=pw;}
+function tryLogin(){
+  const id=document.getElementById("in-id").value.trim();
+  const pw=document.getElementById("in-pw").value.trim();
+  const a=ACCOUNTS[id];
+  if(!a||a.pw!==pw){document.getElementById("login-err").textContent="아이디 또는 비밀번호가 올바르지 않습니다.";return;}
+  USER=Object.assign({id},a); STORE=a.stores[0];
+  document.getElementById("landing").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  boot();
+}
+function logout(){USER=null;STORE=null;location.reload();}
+document.getElementById("in-pw").addEventListener("keydown",e=>{if(e.key==="Enter")tryLogin();});
+
+/* ---------------- boot ---------------- */
+function boot(){
+  document.getElementById("who-name").textContent=USER.name;
+  document.getElementById("who-role").textContent = USER.role==="owner"?"전체 관리자 · 모든 기능":"매장 점장";
+  const d=new Date(2026,6,20);
+  document.getElementById("today").textContent="2026년 7월 20일 (월) 마감 기준";
+  // nav
+  const nav=document.getElementById("nav"); nav.innerHTML="";
+  MENU.forEach(m=>{
+    const b=document.createElement("button");
+    b.className="nav-item"; b.dataset.id=m.id;
+    b.innerHTML=`<span class="ico">${m.ico}</span>${m.label}`;
+    b.onclick=()=>{go(m.id); if(window.innerWidth<=880) toggleSide();};
+    nav.appendChild(b);
+  });
+  // store switch
+  const sw=document.getElementById("store-switch"); sw.innerHTML="";
+  USER.stores.forEach(sid=>{
+    const s=STORES[sid];
+    const b=document.createElement("button"); b.dataset.sid=sid;
+    b.innerHTML=`<span class="badge" style="background:${s.color}">${s.badge}</span>${s.name}`;
+    b.onclick=()=>{STORE=sid; syncStore(); go(currentView);};
+    sw.appendChild(b);
+  });
+  if(USER.stores.length<2) sw.style.display="none";
+  syncStore();
+  go("dash");
+}
+function syncStore(){
+  document.querySelectorAll("#store-switch button").forEach(b=>b.classList.toggle("active",b.dataset.sid===STORE));
+}
+function toggleSide(){document.getElementById("side").classList.toggle("open");document.getElementById("scrim").classList.toggle("show");}
+
+/* ---------------- router ---------------- */
+let currentView="dash";
+function go(id){
+  currentView=id;
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.id===id));
+  const m=MENU.find(x=>x.id===id);
+  document.getElementById("view-title").textContent=m.label;
+  document.getElementById("content").innerHTML = VIEWS[id]();
+  document.getElementById("content").scrollTop=0;
+  window.scrollTo(0,0);
+}
+
+/* ---------------- helpers ---------------- */
+function lineChart(vals, color){
+  const w=560,h=150,pad=8;
+  const max=Math.max(...vals)*1.12, min=Math.min(...vals)*0.85;
+  const xs=i=>pad+i*(w-2*pad)/(vals.length-1);
+  const ys=v=>h-pad-(v-min)/(max-min)*(h-2*pad);
+  const pts=vals.map((v,i)=>[xs(i),ys(v)]);
+  const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  const area=`${line} L ${xs(vals.length-1)} ${h-pad} L ${pad} ${h-pad} Z`;
+  const days=["월","화","수","목","금","토","일"];
+  return `<svg viewBox="0 0 ${w} ${h+22}" style="width:100%;height:auto">
+    <defs><linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="${color}" stop-opacity=".18"/><stop offset="1" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${area}" fill="url(#g1)"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#fff" stroke="${color}" stroke-width="2"/>`).join("")}
+    ${pts.map((p,i)=>`<text x="${p[0].toFixed(1)}" y="${h+16}" text-anchor="middle" font-size="11" fill="#8f897f">${days[i]}</text>`).join("")}
+  </svg>`;
+}
+function compareBars(){
+  const rows=Object.keys(DATA).map(k=>({k,name:STORES[k].name,color:STORES[k].color,
+    sales:DATA[k].sales, profit:DATA[k].sales-DATA[k].cost-DATA[k].labor-DATA[k].fixed}));
+  const max=Math.max(...rows.map(r=>r.sales));
+  return rows.map(r=>`<div style="margin-bottom:14px">
+     <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+       <span style="font-weight:700"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${r.color};margin-right:6px"></span>${r.name}</span>
+       <span class="tnum" style="color:var(--ink-2)">${won(r.sales)} <span style="color:var(--muted)">· 이익 ${won(r.profit)}</span></span>
+     </div>
+     <div class="bar"><span style="width:${(r.sales/max*100).toFixed(0)}%;background:${r.color}"></span></div>
+   </div>`).join("");
+}
+
+/* ---------------- views ---------------- */
+const VIEWS={
+  dash(){
+    const d=DATA[STORE], s=STORES[STORE];
+    const profit=d.sales-d.cost-d.labor-d.fixed;
+    const marginR=(profit/d.sales*100);
+    const costR=(d.cost/d.sales*100), laborR=(d.labor/d.sales*100);
+    const dsales=((d.sales-d.prevSales)/d.prevSales*100);
+    const goalPct=(d.mtd/d.goal*100);
+    const adminCompare = USER.role==="owner" ? `
+      <div class="card" style="margin-top:16px">
+        <h3>매장 비교 <span class="adminonly-tag">관리자 전용</span></h3>
+        <p class="csub">오늘 매출·이익 한눈에 보기</p>
+        ${compareBars()}
+      </div>`:"";
+    return `
+    <div class="grid kpis">
+      <div class="tile"><div class="lab">오늘 매출</div><div class="val tnum">${won(d.sales)}</div>
+        <div class="delta ${dsales>=0?'up':'down'}">${dsales>=0?'▲':'▼'} ${Math.abs(dsales).toFixed(1)}% <span style="color:var(--muted);font-weight:500">전일 대비</span></div></div>
+      <div class="tile"><div class="lab">오늘 이익</div><div class="val tnum">${won(profit)}</div>
+        <div class="delta up">이익률 ${marginR.toFixed(1)}%</div></div>
+      <div class="tile"><div class="lab">원가율</div><div class="val tnum">${costR.toFixed(1)}<small>%</small></div>
+        <div class="delta ${costR<35?'up':'down'}">${costR<35?'양호':'점검'}</div></div>
+      <div class="tile"><div class="lab">인건비율</div><div class="val tnum">${laborR.toFixed(1)}<small>%</small></div>
+        <div class="delta">객수 ${d.guests}명</div></div>
+    </div>
+    <div class="grid row2" style="margin-top:16px">
+      <div class="card">
+        <h3>최근 7일 매출 추이</h3><p class="csub">${s.name} · 일 매출 흐름</p>
+        ${lineChart(d.trend, s.color)}
+      </div>
+      <div class="card">
+        <h3>월 목표 달성률</h3><p class="csub">7월 목표 ${wonMan(d.goal)}원</p>
+        <div style="font-size:30px;font-weight:800" class="tnum">${goalPct.toFixed(0)}<small style="font-size:16px;color:var(--ink-2)">%</small></div>
+        <div class="goal"><div class="bar"><span style="width:${Math.min(goalPct,100)}%"></span></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:8px">
+          <span>현재 ${wonMan(d.mtd)}원</span><span>남은 목표 ${wonMan(d.goal-d.mtd)}원</span></div>
+        <div style="margin-top:18px;border-top:1px solid var(--line-soft);padding-top:14px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span style="color:var(--ink-2)">이번 달 누적 이익</span><b class="tnum">${wonMan(d.mtd*0.16)}원</b></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--ink-2)">일 평균 매출</span><b class="tnum">${won(d.mtd/20)}</b></div>
+        </div>
+      </div>
+    </div>
+    ${adminCompare}`;
+  },
+
+  close(){
+    const s=STORES[STORE];
+    return `
+    <div class="card">
+      <h3>일마감 입력 <span class="pill w">2026-07-20</span></h3>
+      <p class="csub">${s.name} · 오늘 영업 마감 내용을 입력하면 대시보드·손익에 자동 반영됩니다.</p>
+      <div class="form-grid">
+        <div class="fld"><label>영업일자</label><input type="date" value="2026-07-20"></div>
+        <div class="fld"><label>객수 (명)</label><input type="number" placeholder="예: 214"></div>
+        <div class="fld"><label>카드 매출</label><input type="number" placeholder="원"></div>
+        <div class="fld"><label>현금 매출</label><input type="number" placeholder="원"></div>
+        <div class="fld"><label>배달 매출 (배민·쿠팡 등)</label><input type="number" placeholder="원"></div>
+        <div class="fld"><label>기타 매출</label><input type="number" placeholder="원"></div>
+        <div class="fld"><label>식자재 매입 (원가)</label><input type="number" placeholder="원"></div>
+        <div class="fld"><label>당일 지출 (소모품 등)</label><input type="number" placeholder="원"></div>
+      </div>
+      <div class="fld" style="margin-top:14px"><label>특이사항 메모</label><textarea rows="2" placeholder="예: 단체 예약 3팀, 우천으로 배달 비중 높음"></textarea></div>
+      <div class="btn-row"><button class="btn ghost">임시 저장</button><button class="btn">마감 확정</button></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>이번 주 마감 현황</h3><p class="csub">빠진 날은 자동으로 표시됩니다.</p>
+      <table><thead><tr><th>날짜</th><th>매출</th><th>객수</th><th>상태</th></tr></thead><tbody>
+      ${["7/14 월","7/15 화","7/16 수","7/17 목","7/18 금","7/19 토"].map((d,i)=>`
+        <tr><td>${d}</td><td class="tnum">${won(DATA[STORE].trend[i])}</td><td class="tnum">${180+i*6}</td><td><span class="pill g">완료</span></td></tr>`).join("")}
+        <tr><td>7/20 일</td><td class="tnum" style="color:var(--muted)">—</td><td class="tnum" style="color:var(--muted)">—</td><td><span class="pill w">미입력</span></td></tr>
+      </tbody></table>
+    </div>`;
+  },
+
+  daily(){
+    const d=DATA[STORE], s=STORES[STORE];
+    const gross=d.sales-d.cost;
+    const op=gross-d.labor-d.fixed;
+    const line=(l,v,cls="")=>`<tr class="pl-row"><td>${l}</td><td class="tnum ${cls}">${won(v)}</td><td class="tnum" style="color:var(--muted)">${(v/d.sales*100).toFixed(1)}%</td></tr>`;
+    return `
+    <div class="card">
+      <h3>일일 손익계산서 <span class="pill w">2026-07-20</span></h3>
+      <p class="csub">${s.name} · 그날 하루의 손익을 자동 계산합니다.</p>
+      <table><thead><tr><th>항목</th><th>금액</th><th>매출대비</th></tr></thead><tbody>
+        ${line("총매출",d.sales)}
+        ${line("(-) 식자재 원가",-d.cost,"neg")}
+        <tr class="pl-total"><td>매출총이익</td><td class="tnum pos">${won(gross)}</td><td class="tnum" style="color:var(--muted)">${(gross/d.sales*100).toFixed(1)}%</td></tr>
+        ${line("(-) 인건비",-d.labor,"neg")}
+        ${line("(-) 고정비 (일할)",-d.fixed,"neg")}
+        <tr class="pl-total"><td>영업이익</td><td class="tnum ${op>=0?'pos':'neg'}">${won(op)}</td><td class="tnum" style="color:var(--muted)">${(op/d.sales*100).toFixed(1)}%</td></tr>
+      </tbody></table>
+    </div>
+    <div class="grid row-eq" style="margin-top:16px">
+      <div class="tile"><div class="lab">객단가</div><div class="val tnum">${won(d.sales/d.guests)}</div><div class="delta">객수 ${d.guests}명</div></div>
+      <div class="tile"><div class="lab">손익분기 대비</div><div class="val tnum">달성 ✓</div><div class="delta up">BEP ${won((d.labor+d.fixed)/0.66)} 초과</div></div>
+    </div>`;
+  },
+
+  month(){
+    const d=DATA[STORE], s=STORES[STORE];
+    const sales=d.mtd, cost=sales*0.34, labor=d.labor*26, fixed=d.fixed*30;
+    const op=sales-cost-labor-fixed;
+    return `
+    <div class="card">
+      <h3>월정산 · 손익계산서 <span class="pill w">2026년 7월</span></h3>
+      <p class="csub">${s.name} · 이번 달 누적 손익 (20일 기준)</p>
+      <table><thead><tr><th>항목</th><th>금액</th><th>비율</th></tr></thead><tbody>
+        <tr class="pl-row"><td>총매출</td><td class="tnum">${won(sales)}</td><td class="tnum" style="color:var(--muted)">100%</td></tr>
+        <tr class="pl-row"><td>(-) 원가</td><td class="tnum neg">${won(-cost)}</td><td class="tnum" style="color:var(--muted)">${(cost/sales*100).toFixed(0)}%</td></tr>
+        <tr class="pl-row"><td>(-) 인건비</td><td class="tnum neg">${won(-labor)}</td><td class="tnum" style="color:var(--muted)">${(labor/sales*100).toFixed(0)}%</td></tr>
+        <tr class="pl-row"><td>(-) 고정비</td><td class="tnum neg">${won(-fixed)}</td><td class="tnum" style="color:var(--muted)">${(fixed/sales*100).toFixed(0)}%</td></tr>
+        <tr class="pl-total"><td>영업이익</td><td class="tnum pos">${won(op)}</td><td class="tnum" style="color:var(--muted)">${(op/sales*100).toFixed(1)}%</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>급여 정산</h3><p class="csub">이번 달 직원 급여 (시급직은 근무시간 반영)</p>
+      <table><thead><tr><th>직원</th><th>구분</th><th>기준</th><th>예상 급여</th></tr></thead><tbody>
+      ${STAFF[STORE].map(p=>{const amt=p.type==="월급"?p.amt:p.amt*180;return`
+        <tr><td>${p.n} <span style="color:var(--muted);font-size:12px">· ${p.role}</span></td><td>${p.type}</td>
+        <td class="tnum">${p.type==="월급"?won(p.amt):won(p.amt)+"/h × 180h"}</td><td class="tnum">${won(amt)}</td></tr>`}).join("")}
+        <tr class="pl-total"><td>합계</td><td></td><td></td><td class="tnum">${won(STAFF[STORE].reduce((a,p)=>a+(p.type==="월급"?p.amt:p.amt*180),0))}</td></tr>
+      </tbody></table>
+      <div class="btn-row"><button class="btn ghost">엑셀 내보내기</button></div>
+    </div>`;
+  },
+
+  labor(){
+    const s=STORES[STORE];
+    return `
+    <div class="card">
+      <h3>인건비 관리</h3><p class="csub">${s.name} · 직원별 급여를 등록하면 손익·월정산에 자동 반영됩니다.</p>
+      <table><thead><tr><th>직원</th><th>포지션</th><th>급여형태</th><th>단가</th><th></th></tr></thead><tbody>
+      ${STAFF[STORE].map(p=>`<tr><td>${p.n}</td><td>${p.role}</td><td>${p.type}</td>
+        <td class="tnum">${p.type==="월급"?won(p.amt):won(p.amt)+" /시간"}</td>
+        <td style="text-align:right"><button class="btn ghost" style="padding:6px 12px;font-size:12px">수정</button></td></tr>`).join("")}
+      </tbody></table>
+      <div style="border-top:1px dashed var(--line);margin-top:18px;padding-top:18px">
+        <h3 style="font-size:14px">+ 직원 추가</h3>
+        <div class="form-grid" style="margin-top:12px">
+          <div class="fld"><label>이름</label><input placeholder="직원 이름"></div>
+          <div class="fld"><label>포지션</label><input placeholder="주방 / 홀 등"></div>
+          <div class="fld"><label>급여형태</label><select><option>시급</option><option>월급</option></select></div>
+          <div class="fld"><label>단가 (원)</label><input type="number" placeholder="시급 또는 월급"></div>
+        </div>
+        <div class="btn-row"><button class="btn">직원 등록</button></div>
+      </div>
+    </div>`;
+  },
+
+  todo(){
+    const s=STORES[STORE];
+    const list=TASKS[STORE];
+    return `
+    <div class="card">
+      <h3>오늘 할일 <span class="pill w">${s.name}</span></h3>
+      <p class="csub">점장·직원이 매장에서 직접 적고 체크하는 공간입니다.</p>
+      <div>${list.map((t,i)=>`
+        <div class="task ${t.done?'done':''}">
+          <input type="checkbox" ${t.done?'checked':''} onchange="this.closest('.task').classList.toggle('done',this.checked)">
+          <span class="t-txt">${t.t}</span><span class="who">${t.who}</span>
+        </div>`).join("")}</div>
+      <div class="add-task">
+        <input placeholder="할일을 입력하고 Enter">
+        <button class="btn">추가</button>
+      </div>
+    </div>`;
+  },
+
+  review(){
+    const s=STORES[STORE];
+    const list=REVIEWS[STORE];
+    const newCnt=list.filter(r=>r.new).length;
+    return `
+    <div class="card" style="background:linear-gradient(180deg,rgba(240,84,45,.05),transparent);border-color:rgba(240,84,45,.25)">
+      <h3>🔔 리뷰 알림</h3>
+      <p class="csub" style="margin-bottom:12px">네이버·카카오 스마트플레이스에 새 리뷰가 달리면 여기로 모입니다. <b style="color:var(--brand-deep)">오늘 새 리뷰 ${newCnt}건</b></p>
+      <div style="display:flex;gap:16px;font-size:13px">
+        <span>평균 별점 <b>${(list.reduce((a,r)=>a+r.star,0)/list.length).toFixed(1)}</b> / 5.0</span>
+        <span style="color:var(--muted)">총 리뷰 ${list.length}건</span>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>${s.name} 최근 리뷰</h3><p class="csub">네이버지도 · 카카오맵</p>
+      ${list.map(r=>`<div class="rv">
+        <div class="src ${r.src}">${r.src==='naver'?'N':'K'}</div>
+        <div class="body">
+          <div class="top"><span class="stars">${'★'.repeat(r.star)}${'☆'.repeat(5-r.star)}</span><span>${r.name}</span><span>· ${r.time}</span>${r.new?'<span class="new">NEW</span>':''}</div>
+          <p class="txt">${r.txt}</p>
+        </div></div>`).join("")}
+    </div>`;
+  },
+
+  settings(){
+    const s=STORES[STORE], d=DATA[STORE];
+    return `
+    <div class="card">
+      <h3>고정비 설정</h3><p class="csub">${s.name} · 월 고정비를 넣으면 일일·월 손익에 자동 배분됩니다.</p>
+      <div class="form-grid">
+        <div class="fld"><label>임대료 (월)</label><input type="number" value="8000000"></div>
+        <div class="fld"><label>관리비 (월)</label><input type="number" value="1200000"></div>
+        <div class="fld"><label>공과금 (전기·가스·수도)</label><input type="number" value="2400000"></div>
+        <div class="fld"><label>보험·기타 (월)</label><input type="number" value="900000"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>목표·기준 설정</h3><p class="csub">월 매출 목표와 원가/인건비 기준선</p>
+      <div class="form-grid">
+        <div class="fld"><label>월 매출 목표</label><input type="number" value="${d.goal}"></div>
+        <div class="fld"><label>목표 원가율 (%)</label><input type="number" value="33"></div>
+        <div class="fld"><label>목표 인건비율 (%)</label><input type="number" value="20"></div>
+        <div class="fld"><label>영업일수 (월)</label><input type="number" value="30"></div>
+      </div>
+      <div class="btn-row"><button class="btn">저장</button></div>
+    </div>
+    ${USER.role==="owner"?`
+    <div class="section-head"><h2>관리자 설정</h2><span class="adminonly-tag">오너 전용</span></div>
+    <div class="card">
+      <h3>매장·계정 관리</h3><p class="csub">매장 추가, 점장 계정 발급, 권한 관리</p>
+      <table><thead><tr><th>매장</th><th>점장 계정</th><th>권한</th><th></th></tr></thead><tbody>
+      ${Object.keys(STORES).map(k=>`<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${STORES[k].color};margin-right:7px"></span>${STORES[k].name}</td>
+        <td class="tnum">${k}</td><td>점장 (본인 매장)</td>
+        <td style="text-align:right"><button class="btn ghost" style="padding:6px 12px;font-size:12px">관리</button></td></tr>`).join("")}
+      </tbody></table>
+      <div class="btn-row"><button class="btn ghost">+ 매장 추가</button><button class="btn">+ 계정 발급</button></div>
+    </div>`:""}`;
+  },
+};
+</script>
+</body>
+</html>

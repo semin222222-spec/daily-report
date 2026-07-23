@@ -1,98 +1,129 @@
-'use client';
+import { BrandLockup, StoreLogo } from '@/components/BrandMark'
+import { getAvailableLogos } from '@/lib/logos'
+import { createClient } from '@/lib/supabase/server'
+import type { Store } from '@/lib/types'
+import { LoginForm } from './LoginForm'
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
-import { C, S } from '@/lib/theme';
+export const dynamic = 'force-dynamic'
 
-export default function LoginPage() {
-  const router = useRouter();
-  const { signIn } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+/** 매장 테이블을 못 읽을 때(마이그레이션 전) 쓰는 표시용 폴백 */
+const FALLBACK_STORES: Store[] = [
+  { tag: 'bbiddak', name: '삐딱', branch: '을지로점', color: '#f0542d', badge: '삐', kind: 'main' },
+  { tag: 'woosam', name: '우삼집', branch: '연남점', color: '#d98324', badge: '우', kind: 'franchise' },
+  { tag: 'ssuk', name: '쑥고개', branch: '', color: '#4b7f52', badge: '쑥', kind: 'franchise' },
+].map((s, i) => ({
+  ...s,
+  id: s.tag,
+  sort_order: i,
+  is_active: true,
+  created_at: '',
+})) as Store[]
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      await signIn(email, password);
-      router.push('/');
-    } catch (err: any) {
-      setError(err.message || '로그인 실패');
-    } finally {
-      setLoading(false);
-    }
-  };
+/** /auth/signout 이 넘겨준 사유를 사람이 읽을 수 있는 안내로 */
+const SIGNOUT_REASONS: Record<string, string> = {
+  'no-profile':
+    '계정은 있지만 권한 설정이 없습니다. Supabase SQL Editor에서 004_accounts.sql 을 실행하거나, 오너에게 계정 연결을 요청해주세요.',
+  'no-store':
+    '등록된 매장이 없습니다. Supabase SQL Editor에서 003_seed.sql 을 먼저 실행해주세요.',
+}
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: { error?: string }
+}) {
+  const notice = searchParams.error
+    ? SIGNOUT_REASONS[searchParams.error] ?? '로그인이 만료되었습니다. 다시 로그인해주세요.'
+    : null
+
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('stores')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+
+  const stores = data && data.length > 0 ? (data as Store[]) : FALLBACK_STORES
+
+  // 로고 파일 유무를 서버에서 확정한다 (깨진 이미지 방지)
+  const logos = await getAvailableLogos()
+  const srcOf = (tag: string) => (logos.has(tag) ? `/logos/${tag}.png` : null)
 
   return (
-    <div style={{ minHeight: 'calc(100vh - 65px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          width: '100%', maxWidth: '400px',
-          borderRadius: '16px', border: `1px solid ${C.border}`,
-          backgroundColor: 'rgba(20, 17, 15, 0.6)',
-          padding: '40px',
-          backdropFilter: 'blur(8px)',
-        }}
+    <main
+      className="flex min-h-screen items-center justify-center px-5 py-8"
+      style={{
+        background:
+          'radial-gradient(1200px 600px at 80% -10%, rgba(240,84,45,.22), transparent 60%),' +
+          'radial-gradient(900px 500px at -10% 110%, rgba(217,131,36,.16), transparent 55%),' +
+          '#191512',
+      }}
+    >
+      <div
+        className="grid w-full max-w-[940px] grid-cols-1 overflow-hidden rounded-3xl
+                   border border-white/[.09] bg-white/[.03] shadow-land
+                   shell:grid-cols-[1.15fr_.85fr]"
       >
-        <div style={{ marginBottom: '32px' }}>
-          <div style={{ ...S.mono, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: C.accent }}>
-            Sign in
+        {/* ── 좌: 브랜드 ─────────────────────────── */}
+        <div className="flex flex-col justify-center px-7 py-10 text-white shell:px-[46px] shell:py-[52px]">
+          <div className="mb-5 text-[15px] font-bold tracking-[.28em] text-white/60 shell:text-[16px]">
+            주식회사 삐딱
           </div>
-          <h1 style={{ margin: '4px 0 0', fontSize: '24px', fontWeight: 600, color: C.text }}>
-            로그인
-          </h1>
+
+          <BrandLockup
+            src={srcOf('bbiddak')}
+            symbolSize={62}
+            textSize={46}
+            className="shell:hidden"
+          />
+          <BrandLockup
+            src={srcOf('bbiddak')}
+            symbolSize={88}
+            textSize={66}
+            className="hidden shell:inline-flex"
+          />
+
+          <p className="mt-5 text-[15px] leading-relaxed text-white/70">
+            매출과 손익을 한 곳에서 관리하는
+            <br />삐딱 전용 정산 시스템
+          </p>
+
+          <div className="mt-9 flex flex-wrap gap-2.5">
+            {stores.map((s) => (
+              <div
+                key={s.id}
+                className={`flex items-center gap-[9px] rounded-full border py-[9px] pl-2.5 pr-4 ${
+                  s.kind === 'main'
+                    ? 'border-brand/45 bg-brand/[.16]'
+                    : 'border-white/10 bg-white/[.06]'
+                }`}
+              >
+                <StoreLogo
+                  tag={s.tag}
+                  name={s.name}
+                  color={s.color}
+                  badge={s.badge}
+                  size={26}
+                  onDark
+                  src={srcOf(s.tag)}
+                />
+                <div>
+                  <div className="text-[13.5px] font-semibold text-white/85">
+                    {s.name}
+                  </div>
+                  {/* 지점명이 없는 매장은 이름만 (빈 줄이 생기지 않게) */}
+                  {s.branch && (
+                    <div className="text-[11px] text-white/45">{s.branch}</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <label style={S.label}>이메일</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="manager@example.com"
-              style={S.input}
-            />
-          </div>
-
-          <div>
-            <label style={S.label}>비밀번호</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={S.input}
-            />
-          </div>
-
-          {error && (
-            <p style={{ fontSize: '13px', color: C.danger, margin: 0 }}>
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%', padding: '12px', borderRadius: '8px', border: 'none',
-              backgroundColor: C.accent, color: C.bg,
-              fontWeight: 600, fontSize: '15px', cursor: loading ? 'wait' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            {loading ? '로그인 중...' : '로그인'}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
+        {/* ── 우: 로그인 폼 ──────────────────────── */}
+        <LoginForm stores={stores} notice={notice} />
+      </div>
+    </main>
+  )
 }

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bbiddak-report",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "daily-report-system", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}

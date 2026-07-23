@@ -1,36 +1,26 @@
-import './globals.css';
-import { AuthProvider } from '@/lib/auth';
-import NavBar from '@/components/NavBar';
+import type { Metadata, Viewport } from 'next'
+import './globals.css'
 
-export const metadata = {
-  title: '매장 마감 보고 시스템',
-  description: '5개 매장 일일 마감 보고 및 매출 대시보드',
-};
+export const metadata: Metadata = {
+  title: '주식회사 삐딱 · 매장정산',
+  description: '삐딱, 우삼집, 쑥고개 — 세 매장의 매출과 손익을 한 곳에서 관리하는 삐딱 전용 정산 시스템',
+  icons: { icon: '/logos/bbiddak.png' },
+}
 
-export const viewport = {
+export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: '#faf7f2',
-};
+  themeColor: '#191512',
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="ko">
-      <body style={{
-        fontFamily: "'EB Garamond', Georgia, serif",
-        backgroundColor: '#faf7f2',
-        color: '#1a1612',
-        minHeight: '100vh',
-        WebkitTapHighlightColor: 'transparent',
-        WebkitTextSizeAdjust: '100%',
-      }}>
-        <AuthProvider>
-          <NavBar />
-          <main>{children}</main>
-        </AuthProvider>
-      </body>
+      <body className="font-sans">{children}</body>
     </html>
-  );
+  )
 }
