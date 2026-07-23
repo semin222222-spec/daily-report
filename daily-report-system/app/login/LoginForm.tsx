@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Store } from '@/lib/types'
 
 const DOMAIN = process.env.NEXT_PUBLIC_LOGIN_EMAIL_DOMAIN || 'bbiddak.com'
 
@@ -40,11 +39,19 @@ function authErrorMessage(code: string | undefined, fallback: string): string {
   }
 }
 
+export interface LoginHint {
+  login_id: string
+  name: string
+  role: string
+  store_name: string
+}
+
 export function LoginForm({
-  stores,
+  hints,
   notice,
 }: {
-  stores: Store[]
+  /** 실제 발급된 계정 목록 (login_hints() 결과) */
+  hints: LoginHint[]
   /** 세션이 끊긴 사유 안내 (프로필 없음 / 매장 없음 등) */
   notice?: string | null
 }) {
@@ -85,14 +92,6 @@ export function LoginForm({
   }
 
   // 아이디 힌트 — 클릭하면 아이디 칸만 채운다(비밀번호는 채우지 않는다)
-  const accountHints = [
-    { id: 'admin', desc: '오너 · 전체 관리자', scope: '모든 매장' },
-    ...stores.map((s) => ({
-      id: s.tag,
-      desc: `${s.name} 점장`,
-      scope: `${s.name}만`,
-    })),
-  ]
 
   return (
     <div className="flex flex-col justify-center bg-white px-[38px] py-[42px]">
@@ -158,26 +157,31 @@ export function LoginForm({
         </div>
       </form>
 
-      <div className="mt-5 border-t border-dashed border-line pt-4">
-        <div className="mb-2 text-[11.5px] font-bold tracking-[.02em] text-muted">
-          계정 안내 (클릭하면 아이디가 입력됩니다)
+      {/* 실제 발급된 계정만 보여준다. 없으면 이 영역 자체가 사라진다. */}
+      {hints.length > 0 && (
+        <div className="mt-5 border-t border-dashed border-line pt-4">
+          <div className="mb-2 text-[11.5px] font-bold tracking-[.02em] text-muted">
+            계정 안내 (클릭하면 아이디가 입력됩니다)
+          </div>
+          {hints.map((h) => (
+            <button
+              key={h.login_id}
+              type="button"
+              onClick={() => setLoginId(h.login_id)}
+              className="mb-1.5 flex w-full justify-between gap-2 rounded-[9px] border border-line
+                         bg-[#f7f5f1] px-[11px] py-2 text-left text-[12.5px] text-ink-2
+                         transition hover:border-brand hover:text-ink"
+            >
+              <span className="min-w-0 truncate">
+                <b className="text-ink">{h.login_id}</b> · {h.name}
+              </span>
+              <span className="shrink-0">
+                {h.role === 'owner' ? '모든 매장' : h.store_name}
+              </span>
+            </button>
+          ))}
         </div>
-        {accountHints.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            onClick={() => setLoginId(a.id)}
-            className="mb-1.5 flex w-full justify-between gap-2 rounded-[9px] border border-line
-                       bg-[#f7f5f1] px-[11px] py-2 text-left text-[12.5px] text-ink-2
-                       transition hover:border-brand hover:text-ink"
-          >
-            <span>
-              <b className="text-ink">{a.id}</b> · {a.desc}
-            </span>
-            <span>{a.scope}</span>
-          </button>
-        ))}
-      </div>
+      )}
     </div>
   )
 }

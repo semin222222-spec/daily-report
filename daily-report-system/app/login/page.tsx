@@ -2,7 +2,7 @@ import { BrandLockup, StoreLogo } from '@/components/BrandMark'
 import { getAvailableLogos } from '@/lib/logos'
 import { createClient } from '@/lib/supabase/server'
 import type { Store } from '@/lib/types'
-import { LoginForm } from './LoginForm'
+import { LoginForm, type LoginHint } from './LoginForm'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +44,11 @@ export default async function LoginPage({
     .order('sort_order', { ascending: true })
 
   const stores = data && data.length > 0 ? (data as Store[]) : FALLBACK_STORES
+
+  // 계정 안내는 실제 발급된 계정을 읽어온다.
+  // (예전에는 매장 태그로 아이디를 추측해서 없는 계정이 떴다)
+  const { data: hintRows } = await supabase.rpc('login_hints')
+  const hints = (hintRows ?? []) as LoginHint[]
 
   // 로고 파일 유무를 서버에서 확정한다 (깨진 이미지 방지)
   const logos = await getAvailableLogos()
@@ -123,7 +128,7 @@ export default async function LoginPage({
         </div>
 
         {/* ── 우: 로그인 폼 ──────────────────────── */}
-        <LoginForm stores={stores} notice={notice} />
+        <LoginForm hints={hints} notice={notice} />
       </div>
     </main>
   )
