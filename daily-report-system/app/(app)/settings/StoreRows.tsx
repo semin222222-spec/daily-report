@@ -17,7 +17,7 @@ export function StoreRows({
 }: {
   stores: Store[]
   managers: Profile[]
-  /** tag → 로고 경로 (없으면 null) */
+  /** 매장 id → 로고 경로 (없으면 null) */
   logos: Record<string, string | null>
 }) {
   const [editing, setEditing] = useState<string | null>(null)
@@ -51,7 +51,7 @@ export function StoreRows({
                         color={s.color}
                         badge={s.badge}
                         size={18}
-                        src={logos[s.tag]}
+                        src={logos[s.id]}
                       />
                       {s.name}
                       {!s.is_active && (
@@ -68,7 +68,7 @@ export function StoreRows({
                       : <span className="text-muted">계정 없음</span>}
                   </td>
                   <td>
-                    {logos[s.tag] ? (
+                    {logos[s.id] ? (
                       <span className="pill pill-g">있음</span>
                     ) : (
                       <span className="text-[11.5px] text-muted">

@@ -94,14 +94,48 @@ export async function createStore(
   const tag = String(formData.get('tag') ?? '').trim().toLowerCase()
 
   if (!name) return { ok: false, message: '매장 이름을 입력해주세요.' }
-  if (!/^[a-z0-9-]{2,20}$/.test(tag)) {
+  if (!/^[a-z0-9-]{2,30}$/.test(tag)) {
     return {
       ok: false,
-      message: '태그는 영문 소문자·숫자·하이픈 2~20자여야 합니다. (예: ssuk)',
+      message:
+        '태그는 영문 소문자·숫자·하이픈 2~30자여야 합니다. (예: bbiddak-mullae)',
     }
   }
 
   const supabase = createClient()
+
+  // 브랜드 결정 — 기존 브랜드를 고르면 그 브랜드의 컬러를 그대로 물려받는다.
+  // 로고는 /logos/{brand}.png 를 공유하므로 따로 올릴 필요가 없다.
+  const brandChoice = String(formData.get('brand') ?? '')
+  const isNewBrand = brandChoice === '__new__'
+
+  let brand: string
+  let color: string
+
+  if (isNewBrand) {
+    brand = String(formData.get('new_brand') ?? '').trim().toLowerCase()
+    if (!/^[a-z0-9-]{2,20}$/.test(brand)) {
+      return {
+        ok: false,
+        message: '브랜드 키는 영문 소문자·숫자·하이픈 2~20자여야 합니다.',
+      }
+    }
+    color = String(formData.get('color') ?? '#f0542d')
+  } else {
+    brand = brandChoice
+    const { data: sibling } = await supabase
+      .from('stores')
+      .select('color')
+      .eq('brand', brand)
+      .limit(1)
+      .maybeSingle()
+
+    if (!sibling) {
+      return { ok: false, message: '선택한 브랜드를 찾을 수 없습니다.' }
+    }
+    color = sibling.color
+  }
+
   const { count } = await supabase
     .from('stores')
     .select('*', { count: 'exact', head: true })
@@ -109,9 +143,10 @@ export async function createStore(
   const { error } = await supabase.from('stores').insert({
     name,
     branch: String(formData.get('branch') ?? '').trim().slice(0, 40),
+    brand,
     tag,
-    color: String(formData.get('color') ?? '#f0542d'),
-    badge: String(formData.get('badge') ?? name[0]).slice(0, 2),
+    color,
+    badge: String(formData.get('badge') || name[0]).slice(0, 2),
     kind: 'franchise',
     sort_order: (count ?? 0) + 1,
   })
@@ -127,7 +162,9 @@ export async function createStore(
   revalidatePath('/', 'layout')
   return {
     ok: true,
-    message: `${name} 매장을 추가했습니다. /public/logos/${tag}.png 로 로고를 넣으면 자동 반영됩니다.`,
+    message: isNewBrand
+      ? `${name} 매장을 추가했습니다. /public/logos/${brand}.png 로 로고를 넣으면 자동 반영됩니다.`
+      : `${name} 매장을 추가했습니다. ${brand} 브랜드의 컬러·로고를 그대로 씁니다.`,
   }
 }
 

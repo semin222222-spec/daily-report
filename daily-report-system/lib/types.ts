@@ -10,7 +10,12 @@ export interface Store {
   id: string
   name: string // '삐딱'
   branch: string // '을지로점' — 없으면 빈 문자열
-  tag: string // 'bbiddak' — 로고 파일명·로그인 아이디 접두어로도 쓰인다
+  /**
+   * 브랜드 키. 같은 브랜드의 지점끼리 로고(/logos/{brand}.png)와 컬러를 공유한다.
+   * 첫 매장은 tag 와 같고, 지점을 추가하면 원래 브랜드를 물려받는다.
+   */
+  brand: string
+  tag: string // 'bbiddak-mullae' — 매장 고유 키 (매장마다 다르다)
   color: string // '#f0542d'
   badge: string // '삐' — 사이드바/스위처의 한 글자 배지
   kind: StoreKind

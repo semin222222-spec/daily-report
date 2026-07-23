@@ -2,7 +2,7 @@
 
 import { ActionForm } from '@/components/ui/ActionForm'
 import type { FixedCosts, Store, StoreSettings } from '@/lib/types'
-import { createStore, saveFixedCosts, saveStoreSettings } from './actions'
+import { saveFixedCosts, saveStoreSettings } from './actions'
 
 function Money({
   name,
@@ -135,72 +135,5 @@ export function GoalsForm({
   if (readOnly) return fields
 
   return <ActionForm action={saveStoreSettings}>{fields}</ActionForm>
-}
-
-export function AddStoreForm() {
-  return (
-    <ActionForm action={createStore} submitLabel="+ 매장 추가">
-      <div className="form-grid">
-        <div>
-          <label className="fld-label" htmlFor="store-name">
-            매장 이름
-          </label>
-          <input
-            id="store-name"
-            name="name"
-            placeholder="예: 쑥고개"
-            className="fld-input"
-          />
-        </div>
-        <div>
-          <label className="fld-label" htmlFor="store-branch">
-            지점명
-          </label>
-          <input
-            id="store-branch"
-            name="branch"
-            placeholder="예: 을지로점 (없으면 비워두세요)"
-            className="fld-input"
-          />
-        </div>
-        <div>
-          <label className="fld-label" htmlFor="store-tag">
-            태그 (영문 · 로고 파일명)
-          </label>
-          <input
-            id="store-tag"
-            name="tag"
-            placeholder="예: ssuk"
-            autoCapitalize="none"
-            className="fld-input"
-          />
-        </div>
-        <div>
-          <label className="fld-label" htmlFor="store-badge">
-            배지 (한 글자)
-          </label>
-          <input
-            id="store-badge"
-            name="badge"
-            maxLength={2}
-            placeholder="예: 쑥"
-            className="fld-input"
-          />
-        </div>
-        <div>
-          <label className="fld-label" htmlFor="store-color">
-            매장 컬러
-          </label>
-          <input
-            id="store-color"
-            name="color"
-            type="color"
-            defaultValue="#4b7f52"
-            className="fld-input h-[42px] p-1"
-          />
-        </div>
-      </div>
-    </ActionForm>
-  )
 }
 

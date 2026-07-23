@@ -1,11 +1,12 @@
-import { getAvailableLogos } from '@/lib/logos'
+import { logoMapByStoreId } from '@/lib/logos'
 import { getPnlInputs } from '@/lib/queries'
 import { getSessionContext } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import type { Profile } from '@/lib/types'
 import { ManagerAccounts } from './ManagerAccounts'
 import { StoreRows } from './StoreRows'
-import { AddStoreForm, FixedCostsForm, GoalsForm } from './SettingsForms'
+import { AddStoreForm } from './AddStoreForm'
+import { FixedCostsForm, GoalsForm } from './SettingsForms'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +16,6 @@ export default async function SettingsPage() {
 
   const isOwner = profile.role === 'owner'
 
-  const availableLogos = await getAvailableLogos()
 
   // 세션의 stores는 활성 매장만 담고 있다. 관리 표에는 비활성 매장도 보여야
   // 복구가 가능하므로 여기서 전체를 따로 읽는다. (오너만 읽힌다 — RLS)
@@ -89,12 +89,7 @@ export default async function SettingsPage() {
             <StoreRows
               stores={allStores}
               managers={managers}
-              logos={Object.fromEntries(
-                allStores.map((s) => [
-                  s.tag,
-                  availableLogos.has(s.tag) ? `/logos/${s.tag}.png` : null,
-                ])
-              )}
+              logos={await logoMapByStoreId(allStores)}
             />
           </div>
 
@@ -103,11 +98,11 @@ export default async function SettingsPage() {
           <div className="card mt-4 scroll-mt-24" id="add-store">
             <h3 className="card-title">+ 매장 추가</h3>
             <p className="card-sub">
-              매장을 추가하면 상단 매장 스위처와 점장 계정 발급의 담당 매장
-              목록에 바로 나타납니다. 태그와 같은 이름의 PNG를 /public/logos/
-              에 넣으면 로고도 자동 적용됩니다.
+              같은 브랜드의 지점(예: 삐딱 문래점)을 추가하면{' '}
+              <b>컬러와 로고를 그대로 물려받습니다.</b> 추가한 매장은 상단
+              스위처와 점장 계정 발급 목록에 바로 나타납니다.
             </p>
-            <AddStoreForm />
+            <AddStoreForm stores={allStores} />
           </div>
 
           <ManagerAccounts

@@ -19,7 +19,7 @@ export function AppShell({
   children,
 }: {
   session: SessionContext
-  /** 매장 tag → 로고 경로 (없으면 null). 서버에서 파일 유무를 확인해 넘겨준다 */
+  /** 매장 id → 로고 경로 (없으면 null). 브랜드 기준으로 서버에서 확인해 넘겨준다 */
   logos: Record<string, string | null>
   children: React.ReactNode
 }) {
@@ -164,7 +164,7 @@ export function AppShell({
                       color={s.color}
                       badge={s.badge}
                       size={18}
-                      src={logos[s.tag]}
+                      src={logos[s.id]}
                     />
                     <span className="hidden sm:inline">{s.name}</span>
                   </button>
@@ -182,7 +182,7 @@ export function AppShell({
                 color={activeStore.color}
                 badge={activeStore.badge}
                 size={18}
-                src={logos[activeStore.tag]}
+                src={logos[activeStore.id]}
               />
               <span className="text-[13px] font-bold text-ink">
                 {activeStore.name}

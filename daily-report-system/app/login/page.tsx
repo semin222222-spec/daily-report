@@ -8,9 +8,9 @@ export const dynamic = 'force-dynamic'
 
 /** 매장 테이블을 못 읽을 때(마이그레이션 전) 쓰는 표시용 폴백 */
 const FALLBACK_STORES: Store[] = [
-  { tag: 'bbiddak', name: '삐딱', branch: '을지로점', color: '#f0542d', badge: '삐', kind: 'main' },
-  { tag: 'woosam', name: '우삼집', branch: '연남점', color: '#d98324', badge: '우', kind: 'franchise' },
-  { tag: 'ssuk', name: '쑥고개', branch: '', color: '#4b7f52', badge: '쑥', kind: 'franchise' },
+  { tag: 'bbiddak', brand: 'bbiddak', name: '삐딱', branch: '을지로점', color: '#f0542d', badge: '삐', kind: 'main' },
+  { tag: 'woosam', brand: 'woosam', name: '우삼집', branch: '연남점', color: '#d98324', badge: '우', kind: 'franchise' },
+  { tag: 'ssuk', brand: 'ssuk', name: '쑥고개', branch: '', color: '#4b7f52', badge: '쑥', kind: 'franchise' },
 ].map((s, i) => ({
   ...s,
   id: s.tag,
@@ -47,7 +47,8 @@ export default async function LoginPage({
 
   // 로고 파일 유무를 서버에서 확정한다 (깨진 이미지 방지)
   const logos = await getAvailableLogos()
-  const srcOf = (tag: string) => (logos.has(tag) ? `/logos/${tag}.png` : null)
+  // 로고는 브랜드 기준 — 같은 브랜드의 여러 지점이 파일 하나를 공유한다
+  const srcOf = (key: string) => (logos.has(key) ? `/logos/${key}.png` : null)
 
   return (
     <main
@@ -105,7 +106,7 @@ export default async function LoginPage({
                   badge={s.badge}
                   size={26}
                   onDark
-                  src={srcOf(s.tag)}
+                  src={srcOf(s.brand || s.tag)}
                 />
                 <div>
                   <div className="text-[13.5px] font-semibold text-white/85">

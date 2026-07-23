@@ -27,7 +27,26 @@ export const getAvailableLogos = cache(async (): Promise<Set<string>> => {
 })
 
 /** 파일이 있으면 경로를, 없으면 null */
-export async function logoSrc(tag: string): Promise<string | null> {
+export async function logoSrc(brand: string): Promise<string | null> {
   const available = await getAvailableLogos()
-  return available.has(tag) ? `/logos/${tag}.png` : null
+  return available.has(brand) ? `/logos/${brand}.png` : null
+}
+
+/**
+ * 매장 목록 → { 매장 id: 로고 경로 } 지도.
+ *
+ * 로고는 tag(매장 고유)가 아니라 brand 기준으로 찾는다.
+ * 그래야 "삐딱 을지로점"과 "삐딱 문래점"이 bbiddak.png 하나를 같이 쓴다.
+ */
+export async function logoMapByStoreId(
+  stores: Array<{ id: string; brand: string; tag: string }>
+): Promise<Record<string, string | null>> {
+  const available = await getAvailableLogos()
+  return Object.fromEntries(
+    stores.map((s) => {
+      // brand가 비어 있는 예전 데이터는 tag로 되돌아간다
+      const key = s.brand || s.tag
+      return [s.id, available.has(key) ? `/logos/${key}.png` : null]
+    })
+  )
 }
