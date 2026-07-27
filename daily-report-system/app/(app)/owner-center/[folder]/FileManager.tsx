@@ -32,6 +32,13 @@ export function FileManager({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+
+  // 파일명으로 실시간 필터 (대소문자·공백 무시)
+  const q = query.trim().toLowerCase()
+  const shown = q
+    ? files.filter((f) => f.name.toLowerCase().includes(q))
+    : files
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const chosen = Array.from(e.target.files ?? [])
@@ -91,7 +98,9 @@ export function FileManager({
   return (
     <div className="card">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="card-title !mb-0">파일 {files.length}개</h3>
+        <h3 className="card-title !mb-0">
+          파일 {q ? `${shown.length}/${files.length}` : files.length}개
+        </h3>
         {isOwner && (
           <>
             <input
@@ -119,14 +128,43 @@ export function FileManager({
         </div>
       )}
 
+      {/* 파일 검색 */}
+      {files.length > 0 && (
+        <div className="relative mb-3">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+            🔍
+          </span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="파일명으로 검색"
+            className="fld-input !pl-9"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="검색 지우기"
+              className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-muted hover:bg-line-soft hover:text-ink"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
+
       {files.length === 0 ? (
         <p className="py-10 text-center text-[13px] text-muted">
           아직 올라온 파일이 없습니다.
           {isOwner ? ' 위에서 파일을 올려보세요.' : ''}
         </p>
+      ) : shown.length === 0 ? (
+        <p className="py-10 text-center text-[13px] text-muted">
+          &lsquo;{query}&rsquo; 와 일치하는 파일이 없습니다.
+        </p>
       ) : (
         <div className="divide-y divide-line-soft">
-          {files.map((f) => (
+          {shown.map((f) => (
             <div key={f.id} className="flex items-center gap-3 py-3">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand/[.08] text-[18px]">
                 {fileIcon(f.name)}
