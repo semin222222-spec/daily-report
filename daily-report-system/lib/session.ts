@@ -21,9 +21,14 @@ export const getSessionContext = cache(
   async (): Promise<SessionContext> => {
     const supabase = createClient()
 
+    // getUser()는 매번 인증 서버로 네트워크 검증을 보낸다(느림).
+    // 미들웨어가 이미 매 요청마다 getUser()로 검증·갱신했고, 데이터는 DB의 RLS가
+    // JWT를 독립적으로 재검증하므로, 여기서는 쿠키만 읽는 getSession()으로 충분하다.
+    // 이 한 줄이 페이지 이동마다 인증 왕복을 2번에서 1번으로 줄인다.
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      data: { session },
+    } = await supabase.auth.getSession()
+    const user = session?.user
 
     if (!user) redirect('/login')
 

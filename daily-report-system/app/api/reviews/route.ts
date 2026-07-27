@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
+export const preferredRegion = 'icn1'
 
 /**
  * ─────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { getSessionContext } from '@/lib/session'
 import { COST_GROUPS, SECTIONS, sumItems, ymLabel } from '@/lib/settlement'
 
 export const dynamic = 'force-dynamic'
+export const preferredRegion = 'icn1'
 
 /** CSV 셀 이스케이프 — 콤마·따옴표·줄바꿈이 들어가도 안전하게 */
 function cell(v: string | number): string {
