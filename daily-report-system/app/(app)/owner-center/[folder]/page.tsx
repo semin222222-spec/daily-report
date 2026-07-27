@@ -30,18 +30,34 @@ export default async function OwnerFolderPage({
     .order('created_at', { ascending: false })
   const files = (data ?? []) as OcFile[]
 
-  // 비공개 버킷이라 파일마다 1시간짜리 서명 다운로드 URL을 미리 만든다
+  // 비공개 버킷이라 파일마다 1시간짜리 서명 URL을 미리 만든다.
+  // urls   = 원본 다운로드용
+  // thumbs = 목록 썸네일용 (미리보기 PNG가 있으면 그것, 없으면 이미지 원본)
   const urls: Record<string, string> = {}
+  const thumbs: Record<string, string> = {}
   if (files.length > 0) {
-    const { data: signed } = await supabase.storage
+    const dl = await supabase.storage
       .from('owner-center')
-      .createSignedUrls(
-        files.map((f) => f.path),
-        60 * 60
-      )
-    signed?.forEach((s, i) => {
+      .createSignedUrls(files.map((f) => f.path), 60 * 60)
+    dl.data?.forEach((s, i) => {
       if (s.signedUrl) urls[files[i].id] = s.signedUrl
     })
+
+    // 썸네일로 쓸 경로: preview_path 우선, 없으면 이미지 원본
+    const thumbTargets = files
+      .map((f) => ({
+        id: f.id,
+        path: f.preview_path || (isImageName(f.name) ? f.path : ''),
+      }))
+      .filter((t) => t.path)
+    if (thumbTargets.length > 0) {
+      const th = await supabase.storage
+        .from('owner-center')
+        .createSignedUrls(thumbTargets.map((t) => t.path), 60 * 60)
+      th.data?.forEach((s, i) => {
+        if (s.signedUrl) thumbs[thumbTargets[i].id] = s.signedUrl
+      })
+    }
   }
 
   return (
@@ -70,8 +86,15 @@ export default async function OwnerFolderPage({
         folder={folder.slug}
         files={files}
         urls={urls}
+        thumbs={thumbs}
         isOwner={isOwner}
       />
     </>
   )
+}
+
+/** 브라우저가 바로 그릴 수 있는 이미지 확장자 */
+function isImageName(name: string): boolean {
+  const ext = name.split('.').pop()?.toLowerCase() ?? ''
+  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'].includes(ext)
 }

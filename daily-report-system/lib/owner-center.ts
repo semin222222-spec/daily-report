@@ -29,6 +29,8 @@ export interface OcFile {
   path: string
   size: number
   mime: string
+  /** AI·PDF 업로드 시 만든 미리보기 PNG 경로 (없으면 빈 문자열) */
+  preview_path: string
   created_at: string
 }
 

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { humanSize, type OcFile } from '@/lib/owner-center'
+import { canMakePreview, makePdfThumbnail } from '@/lib/pdf-thumb'
 
 const BUCKET = 'owner-center'
 
@@ -19,12 +20,15 @@ export function FileManager({
   folder,
   files,
   urls,
+  thumbs,
   isOwner,
 }: {
   folder: string
   files: OcFile[]
-  /** 파일 id → 서명 다운로드 URL (서버에서 미리 만든 것) */
+  /** 파일 id → 서명 다운로드 URL (원본) */
   urls: Record<string, string>
+  /** 파일 id → 썸네일 서명 URL (이미지 원본 또는 AI·PDF 미리보기 PNG) */
+  thumbs: Record<string, string>
   isOwner: boolean
 }) {
   const router = useRouter()
@@ -57,12 +61,26 @@ export function FileManager({
           .upload(path, file, { upsert: false })
         if (upErr) throw upErr
 
+        // AI·PDF면 첫 페이지를 PNG 미리보기로 만들어 함께 올린다
+        let previewPath = ''
+        if (canMakePreview(file.name)) {
+          const blob = await makePdfThumbnail(file)
+          if (blob) {
+            const pp = `${path}.preview.png`
+            const { error: pErr } = await supabase.storage
+              .from(BUCKET)
+              .upload(pp, blob, { upsert: false, contentType: 'image/png' })
+            if (!pErr) previewPath = pp
+          }
+        }
+
         const { error: metaErr } = await supabase.from('oc_files').insert({
           folder,
           name: file.name.slice(0, 200),
           path,
           size: file.size,
           mime: file.type,
+          preview_path: previewPath,
         })
         if (metaErr) throw metaErr
       }
@@ -80,7 +98,10 @@ export function FileManager({
     setError('')
     const supabase = createClient()
     try {
-      await supabase.storage.from(BUCKET).remove([f.path])
+      // 원본 + 미리보기 PNG를 함께 지운다
+      const paths = [f.path]
+      if (f.preview_path) paths.push(f.preview_path)
+      await supabase.storage.from(BUCKET).remove(paths)
       const { error: delErr } = await supabase
         .from('oc_files')
         .delete()
@@ -166,18 +187,18 @@ export function FileManager({
         <div className="divide-y divide-line-soft">
           {shown.map((f) => (
             <div key={f.id} className="flex items-center gap-3 py-3">
-              {isImage(f.name) && urls[f.id] ? (
-                // 이미지 파일: 썸네일 미리보기 (누르면 원본 크게)
+              {thumbs[f.id] ? (
+                // 이미지 원본 또는 AI·PDF 미리보기 썸네일 (누르면 크게)
                 <a
-                  href={urls[f.id]}
+                  href={urls[f.id] ?? thumbs[f.id]}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-line bg-line-soft"
+                  className="block h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-line bg-white"
                   title="크게 보기"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={urls[f.id]}
+                    src={thumbs[f.id]}
                     alt={f.name}
                     className="h-full w-full object-cover"
                     loading="lazy"
@@ -247,12 +268,6 @@ export function FileManager({
       </p>
     </div>
   )
-}
-
-/** 브라우저가 썸네일로 그릴 수 있는 이미지인지 (.ai/.psd 는 미리보기 불가라 제외) */
-function isImage(name: string): boolean {
-  const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'].includes(ext)
 }
 
 function fileIcon(name: string): string {
