@@ -16,15 +16,9 @@ export default function OwnerCenterHome() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {OWNER_FOLDERS.map((f) => {
-          const inner = (
-            <div
-              className={`card h-full transition ${
-                f.ready
-                  ? 'hover:border-brand hover:shadow-[0_8px_24px_rgba(240,84,45,.12)]'
-                  : 'opacity-70'
-              }`}
-            >
+        {OWNER_FOLDERS.map((f) => (
+          <Link key={f.slug} href={`/owner-center/${f.slug}`}>
+            <div className="card h-full transition hover:border-brand hover:shadow-[0_8px_24px_rgba(240,84,45,.12)]">
               <div className="flex items-start gap-3">
                 <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand/[.08] text-[24px]">
                   {f.icon}
@@ -35,28 +29,16 @@ export default function OwnerCenterHome() {
                       {f.no}
                     </span>
                     <h3 className="text-[15.5px] font-bold">{f.title}</h3>
-                    {!f.ready && (
-                      <span className="pill bg-line-soft text-muted">준비중</span>
-                    )}
                   </div>
                   <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">
                     {f.desc}
                   </p>
                 </div>
-                {f.ready && (
-                  <span className="self-center text-muted">→</span>
-                )}
+                <span className="self-center text-muted">→</span>
               </div>
             </div>
-          )
-
-          // 준비중 폴더도 눌러서 안내를 볼 수 있게 전부 링크로 둔다
-          return (
-            <Link key={f.slug} href={`/owner-center/${f.slug}`}>
-              {inner}
-            </Link>
-          )
-        })}
+          </Link>
+        ))}
       </div>
     </>
   )

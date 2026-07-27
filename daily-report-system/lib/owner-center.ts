@@ -9,13 +9,35 @@
 /** 점주센터 PIN 통과 여부를 담는 쿠키 이름 */
 export const OC_COOKIE = 'oc_ok'
 
+export type FolderKind = 'order' | 'files'
+
 export interface OwnerFolder {
   slug: string
   no: string // '01'
   title: string
   desc: string
   icon: string
-  ready: boolean // false면 "준비중"
+  /** 'order' = 오픈발주 체크리스트 / 'files' = 자료 파일 보관함 */
+  kind: FolderKind
+}
+
+/** DB 파일 (oc_files) */
+export interface OcFile {
+  id: string
+  folder: string
+  name: string
+  path: string
+  size: number
+  mime: string
+  created_at: string
+}
+
+/** 바이트 → 사람이 읽는 크기 */
+export function humanSize(bytes: number): string {
+  if (!bytes) return '0 B'
+  const u = ['B', 'KB', 'MB', 'GB']
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), u.length - 1)
+  return `${(bytes / 1024 ** i).toFixed(i ? 1 : 0)} ${u[i]}`
 }
 
 /** 좌측 5개 폴더 */
@@ -26,7 +48,7 @@ export const OWNER_FOLDERS: OwnerFolder[] = [
     title: '오픈 발주',
     desc: '신규 오픈 시 카테고리별 발주 체크리스트',
     icon: '📦',
-    ready: true,
+    kind: 'order',
   },
   {
     slug: 'manual',
@@ -34,7 +56,7 @@ export const OWNER_FOLDERS: OwnerFolder[] = [
     title: '운영 매뉴얼',
     desc: '오픈·마감·응대 등 매장 운영 표준',
     icon: '📘',
-    ready: false,
+    kind: 'files',
   },
   {
     slug: 'recipe',
@@ -42,15 +64,15 @@ export const OWNER_FOLDERS: OwnerFolder[] = [
     title: '레시피',
     desc: '메뉴별 조리 표준 레시피',
     icon: '🍳',
-    ready: false,
+    kind: 'files',
   },
   {
     slug: 'design',
     no: '04',
     title: '디자인',
-    desc: '로고·간판·메뉴판 등 브랜드 자산',
+    desc: '로고·간판·메뉴판 등 브랜드 자산 (AI·PDF·이미지)',
     icon: '🎨',
-    ready: false,
+    kind: 'files',
   },
   {
     slug: 'edu',
@@ -58,9 +80,13 @@ export const OWNER_FOLDERS: OwnerFolder[] = [
     title: '교육자료',
     desc: '신규 직원 교육·위생 자료',
     icon: '🎓',
-    ready: false,
+    kind: 'files',
   },
 ]
+
+export function ownerFolder(slug: string): OwnerFolder | undefined {
+  return OWNER_FOLDERS.find((f) => f.slug === slug)
+}
 
 /** DB 카테고리 (oc_categories) */
 export interface OcCategory {

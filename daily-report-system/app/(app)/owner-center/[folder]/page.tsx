@@ -1,20 +1,48 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { OWNER_FOLDERS } from '@/lib/owner-center'
+import { createClient } from '@/lib/supabase/server'
+import { getSessionContext } from '@/lib/session'
+import { ownerFolder, type OcFile } from '@/lib/owner-center'
+import { FileManager } from './FileManager'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * 아직 내용이 없는 폴더(운영매뉴얼·레시피·디자인·교육)의 준비중 화면.
+ * 자료 파일 폴더 (디자인·레시피·교육·운영매뉴얼).
  * open-order 는 자체 라우트가 있으므로 여기로 오지 않는다.
  */
-export default function OwnerFolderPage({
+export default async function OwnerFolderPage({
   params,
 }: {
   params: { folder: string }
 }) {
-  const folder = OWNER_FOLDERS.find((f) => f.slug === params.folder)
-  if (!folder || folder.slug === 'open-order') notFound()
+  const folder = ownerFolder(params.folder)
+  if (!folder || folder.kind !== 'files') notFound()
+
+  const { profile } = await getSessionContext()
+  const isOwner = profile.role === 'owner'
+  const supabase = createClient()
+
+  const { data } = await supabase
+    .from('oc_files')
+    .select('*')
+    .eq('folder', folder.slug)
+    .order('created_at', { ascending: false })
+  const files = (data ?? []) as OcFile[]
+
+  // 비공개 버킷이라 파일마다 1시간짜리 서명 다운로드 URL을 미리 만든다
+  const urls: Record<string, string> = {}
+  if (files.length > 0) {
+    const { data: signed } = await supabase.storage
+      .from('owner-center')
+      .createSignedUrls(
+        files.map((f) => f.path),
+        60 * 60
+      )
+    signed?.forEach((s, i) => {
+      if (s.signedUrl) urls[files[i].id] = s.signedUrl
+    })
+  }
 
   return (
     <>
@@ -25,22 +53,25 @@ export default function OwnerFolderPage({
         >
           ← 점주센터
         </Link>
+        <div className="mt-1 flex items-center gap-2.5">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand/[.08] text-[22px]">
+            {folder.icon}
+          </span>
+          <div>
+            <h2 className="text-[19px] font-extrabold">
+              {folder.no}. {folder.title}
+            </h2>
+            <p className="text-[12.5px] text-muted">{folder.desc}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="card text-center">
-        <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-2xl bg-brand/[.08] text-[32px]">
-          {folder.icon}
-        </div>
-        <h3 className="card-title !text-[17px]">
-          {folder.no}. {folder.title}
-        </h3>
-        <p className="card-sub !mb-4">{folder.desc}</p>
-        <span className="pill bg-line-soft text-muted">준비중</span>
-        <p className="mx-auto mt-4 max-w-[360px] text-[12.5px] leading-relaxed text-muted">
-          이 폴더는 자료가 준비되는 대로 채워집니다. 어떤 자료를 넣을지
-          알려주시면 오픈 발주처럼 바로 만들어 드립니다.
-        </p>
-      </div>
+      <FileManager
+        folder={folder.slug}
+        files={files}
+        urls={urls}
+        isOwner={isOwner}
+      />
     </>
   )
 }
