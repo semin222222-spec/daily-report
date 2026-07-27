@@ -166,9 +166,28 @@ export function FileManager({
         <div className="divide-y divide-line-soft">
           {shown.map((f) => (
             <div key={f.id} className="flex items-center gap-3 py-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand/[.08] text-[18px]">
-                {fileIcon(f.name)}
-              </div>
+              {isImage(f.name) && urls[f.id] ? (
+                // 이미지 파일: 썸네일 미리보기 (누르면 원본 크게)
+                <a
+                  href={urls[f.id]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-line bg-line-soft"
+                  title="크게 보기"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={urls[f.id]}
+                    alt={f.name}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </a>
+              ) : (
+                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-brand/[.08] text-[22px]">
+                  {fileIcon(f.name)}
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[14px] font-semibold">
                   {f.name}
@@ -228,6 +247,12 @@ export function FileManager({
       </p>
     </div>
   )
+}
+
+/** 브라우저가 썸네일로 그릴 수 있는 이미지인지 (.ai/.psd 는 미리보기 불가라 제외) */
+function isImage(name: string): boolean {
+  const ext = name.split('.').pop()?.toLowerCase() ?? ''
+  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'].includes(ext)
 }
 
 function fileIcon(name: string): string {
