@@ -9,11 +9,14 @@ export function CategoryList({
   categories,
   counts,
   done,
+  isOwner,
 }: {
   categories: OcCategory[]
   counts: Record<string, number>
   /** 카테고리별 구매완료 품목 수 */
   done: Record<string, number>
+  /** 관리자만 추가·수정·삭제 버튼을 본다 */
+  isOwner: boolean
 }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
@@ -87,24 +90,26 @@ export function CategoryList({
             >
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-muted">{no}</span>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setEditing(c.id)}
-                    className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
-                  >
-                    수정
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setConfirming(confirming === c.id ? null : c.id)
-                    }
-                    className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
-                  >
-                    삭제
-                  </button>
-                </div>
+                {isOwner && (
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(c.id)}
+                      className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
+                    >
+                      수정
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfirming(confirming === c.id ? null : c.id)
+                      }
+                      className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                )}
               </div>
 
               <Link href={`/owner-center/open-order/${c.id}`} className="mt-1 block">
@@ -155,8 +160,8 @@ export function CategoryList({
           )
         })}
 
-        {/* 카테고리 추가 카드 */}
-        {adding ? (
+        {/* 카테고리 추가 카드 — 관리자만 */}
+        {!isOwner ? null : adding ? (
           <form
             action={addCategory}
             className="card"

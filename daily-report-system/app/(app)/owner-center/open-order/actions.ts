@@ -5,16 +5,26 @@ import { createClient } from '@/lib/supabase/server'
 
 /**
  * 오픈발주 카테고리·품목 CRUD.
- * 점주센터는 앱에서 PIN으로 잠그고, DB에서는 authenticated 전원 접근이라
- * 여기서는 로그인 여부만 실질적 방어선(RLS)이다.
+ * 추가·수정·삭제는 관리자(owner)만 가능하다. 점장은 보기 전용.
+ * (RLS는 authenticated 전원 허용이므로 이 권한 체크가 실질적 방어선이다)
  */
 
-async function assertLoggedIn() {
+async function assertOwner() {
   const supabase = createClient()
   const {
     data: { session },
   } = await supabase.auth.getSession()
   if (!session?.user) throw new Error('로그인이 필요합니다.')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .maybeSingle()
+
+  if (profile?.role !== 'owner') {
+    throw new Error('관리자만 추가·수정·삭제할 수 있습니다.')
+  }
   return supabase
 }
 
@@ -22,7 +32,7 @@ async function assertLoggedIn() {
 export async function addCategory(formData: FormData): Promise<void> {
   const name = String(formData.get('name') ?? '').trim()
   if (!name) return
-  const supabase = await assertLoggedIn()
+  const supabase = await assertOwner()
 
   const { data: last } = await supabase
     .from('oc_categories')
@@ -44,7 +54,7 @@ export async function renameCategory(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   const name = String(formData.get('name') ?? '').trim()
   if (!id || !name) return
-  const supabase = await assertLoggedIn()
+  const supabase = await assertOwner()
   await supabase
     .from('oc_categories')
     .update({ name: name.slice(0, 40) })
@@ -55,7 +65,7 @@ export async function renameCategory(formData: FormData): Promise<void> {
 export async function deleteCategory(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
-  const supabase = await assertLoggedIn()
+  const supabase = await assertOwner()
   // 품목은 on delete cascade 로 함께 지워진다
   await supabase.from('oc_categories').delete().eq('id', id)
   revalidatePath('/owner-center/open-order')
@@ -96,7 +106,7 @@ export async function addItem(formData: FormData): Promise<void> {
   const categoryId = String(formData.get('category_id') ?? '')
   const fields = itemFields(formData)
   if (!categoryId || !fields.name) return
-  const supabase = await assertLoggedIn()
+  const supabase = await assertOwner()
 
   const { data: last } = await supabase
     .from('oc_items')
@@ -118,7 +128,7 @@ export async function updateItem(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   const fields = itemFields(formData)
   if (!id || !fields.name) return
-  const supabase = await assertLoggedIn()
+  const supabase = await assertOwner()
   // updated_at(최종수정일)은 트리거가 자동으로 now()로 갱신한다
   await supabase.from('oc_items').update(fields).eq('id', id)
   revalidatePath('/owner-center/open-order')
@@ -129,7 +139,7 @@ export async function setItemStatus(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   const status = String(formData.get('status') ?? '')
   if (!id || !STATUSES.includes(status)) return
-  const supabase = await assertLoggedIn()
+  const supabase = await assertOwner()
   await supabase.from('oc_items').update({ status }).eq('id', id)
   revalidatePath('/owner-center/open-order')
 }
@@ -137,7 +147,7 @@ export async function setItemStatus(formData: FormData): Promise<void> {
 export async function deleteItem(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
-  const supabase = await assertLoggedIn()
+  const supabase = await assertOwner()
   await supabase.from('oc_items').delete().eq('id', id)
   revalidatePath('/owner-center/open-order')
 }

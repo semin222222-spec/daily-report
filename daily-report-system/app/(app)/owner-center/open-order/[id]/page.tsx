@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getSessionContext } from '@/lib/session'
 import type { OcCategory, OcItem } from '@/lib/owner-center'
 import { ItemManager } from './ItemManager'
 
@@ -11,6 +12,8 @@ export default async function OpenOrderCategoryPage({
 }: {
   params: { id: string }
 }) {
+  const { profile } = await getSessionContext()
+  const isOwner = profile.role === 'owner'
   const supabase = createClient()
 
   const [catRes, itemRes] = await Promise.all([
@@ -38,7 +41,7 @@ export default async function OpenOrderCategoryPage({
         <h2 className="mt-1 text-[19px] font-extrabold">{category.name}</h2>
       </div>
 
-      <ItemManager categoryId={category.id} items={items} />
+      <ItemManager categoryId={category.id} items={items} isOwner={isOwner} />
     </>
   )
 }

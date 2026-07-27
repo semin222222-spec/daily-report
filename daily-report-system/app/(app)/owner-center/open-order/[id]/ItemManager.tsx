@@ -20,9 +20,12 @@ import { addItem, deleteItem, setItemStatus, updateItem } from '../actions'
 export function ItemManager({
   categoryId,
   items,
+  isOwner,
 }: {
   categoryId: string
   items: OcItem[]
+  /** 관리자만 추가·수정·삭제·상태변경을 할 수 있다 */
+  isOwner: boolean
 }) {
   const storeKey = `oc_check_${categoryId}`
   const [checked, setChecked] = useState<Record<string, boolean>>({})
@@ -157,22 +160,28 @@ export function ItemManager({
                   <td className="tabular-nums">{won(it.est_price)}</td>
                   <td className="tabular-nums">{won(it.buy_price)}</td>
                   <td>
-                    {/* 구매상태는 표에서 바로 변경 */}
-                    <form action={setItemStatus} className="inline">
-                      <input type="hidden" name="id" value={it.id} />
-                      <select
-                        name="status"
-                        defaultValue={it.status}
-                        onChange={(e) => e.currentTarget.form?.requestSubmit()}
-                        className={`rounded-md border-0 px-2 py-1 text-[12px] font-bold outline-none ${STATUS_STYLE[it.status]}`}
-                      >
-                        {OC_STATUSES.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </form>
+                    {isOwner ? (
+                      // 관리자는 표에서 구매상태를 바로 변경
+                      <form action={setItemStatus} className="inline">
+                        <input type="hidden" name="id" value={it.id} />
+                        <select
+                          name="status"
+                          defaultValue={it.status}
+                          onChange={(e) => e.currentTarget.form?.requestSubmit()}
+                          className={`rounded-md border-0 px-2 py-1 text-[12px] font-bold outline-none ${STATUS_STYLE[it.status]}`}
+                        >
+                          {OC_STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </form>
+                    ) : (
+                      <span className={`pill ${STATUS_STYLE[it.status]}`}>
+                        {it.status}
+                      </span>
+                    )}
                   </td>
                   <td className="!text-left">{it.manager || '—'}</td>
                   <td className="!text-left">{it.vendor || '—'}</td>
@@ -197,24 +206,26 @@ export function ItemManager({
                     {it.updated_at?.slice(0, 10) ?? '—'}
                   </td>
                   <td className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setEditing(it.id)}
-                        className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
-                      >
-                        수정
-                      </button>
-                      <form action={deleteItem}>
-                        <input type="hidden" name="id" value={it.id} />
+                    {isOwner && (
+                      <div className="flex justify-end gap-1">
                         <button
-                          type="submit"
-                          className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
+                          type="button"
+                          onClick={() => setEditing(it.id)}
+                          className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
                         >
-                          삭제
+                          수정
                         </button>
-                      </form>
-                    </div>
+                        <form action={deleteItem}>
+                          <input type="hidden" name="id" value={it.id} />
+                          <button
+                            type="submit"
+                            className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
+                          >
+                            삭제
+                          </button>
+                        </form>
+                      </div>
+                    )}
                   </td>
                 </tr>
               )
@@ -234,30 +245,40 @@ export function ItemManager({
         </table>
       </div>
 
-      {/* 품목 추가 */}
-      <div className="mt-4 border-t border-line-soft pt-4">
-        {adding ? (
-          <ItemForm
-            action={addItem}
-            hidden={{ category_id: categoryId }}
-            submitLabel="품목 추가"
-            onDone={() => setAdding(false)}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="btn-ghost w-full"
-          >
-            + 품목 추가
-          </button>
-        )}
-      </div>
+      {/* 품목 추가 — 관리자만 */}
+      {isOwner && (
+        <div className="mt-4 border-t border-line-soft pt-4">
+          {adding ? (
+            <ItemForm
+              action={addItem}
+              hidden={{ category_id: categoryId }}
+              submitLabel="품목 추가"
+              onDone={() => setAdding(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="btn-ghost w-full"
+            >
+              + 품목 추가
+            </button>
+          )}
+        </div>
+      )}
 
       <p className="mt-3 text-[12px] leading-relaxed text-muted">
-        추가·수정·삭제와 금액·상태 변경은 모든 점주에게 공유됩니다. 수정하면
-        최종수정일이 자동으로 갱신됩니다. 입고 체크는 아직 이 브라우저에만
-        저장됩니다.
+        {isOwner ? (
+          <>
+            추가·수정·삭제와 금액·상태 변경은 모든 점주에게 공유됩니다. 수정하면
+            최종수정일이 자동으로 갱신됩니다.{' '}
+          </>
+        ) : (
+          <>
+            품목 추가·수정·삭제는 관리자(본사)만 할 수 있습니다.{' '}
+          </>
+        )}
+        입고 체크는 아직 이 브라우저에만 저장됩니다.
       </p>
     </div>
   )
