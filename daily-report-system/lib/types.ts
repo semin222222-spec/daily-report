@@ -122,6 +122,9 @@ export interface SettlementItem {
   category: SettlementCategory
   name: string
   amount: number
+  /** 알바(labor_part) 전용 — 시급 × 시간. 그 외 카테고리는 0 */
+  rate: number
+  hours: number
   sort_order: number
   created_at: string
 }

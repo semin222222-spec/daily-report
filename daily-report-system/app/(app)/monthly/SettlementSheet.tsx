@@ -12,6 +12,8 @@ interface Row {
   category: SettlementCategory
   name: string
   amount: string // 입력 중에는 문자열로 들고 있어야 지웠다 쓰기가 자연스럽다
+  rate: string // 알바 시급
+  hours: string // 알바 근무시간
 }
 
 let rowSeq = 0
@@ -23,10 +25,18 @@ function toRows(items: SettlementItem[]): Row[] {
     category: i.category,
     name: i.name,
     amount: String(i.amount || ''),
+    rate: String(i.rate || ''),
+    hours: String(i.hours || ''),
   }))
 }
 
-const amountOf = (r: Row) => Number(r.amount.replace(/[^\d]/g, '')) || 0
+const digits = (s: string) => Number(s.replace(/[^\d.]/g, '')) || 0
+
+/** 그 줄의 금액 — 알바는 시급×시간, 그 외는 금액 칸 그대로 */
+function amountOf(r: Row): number {
+  if (r.category === 'labor_part') return Math.round(digits(r.rate) * digits(r.hours))
+  return Math.round(digits(r.amount))
+}
 
 export function SettlementSheet({
   ym,
@@ -78,7 +88,10 @@ export function SettlementSheet({
   ])
 
   function addRow(category: SettlementCategory) {
-    setRows((rs) => [...rs, { key: newKey(), category, name: '', amount: '' }])
+    setRows((rs) => [
+      ...rs,
+      { key: newKey(), category, name: '', amount: '', rate: '', hours: '' },
+    ])
   }
 
   function removeRow(key: string) {
@@ -98,6 +111,8 @@ export function SettlementSheet({
           category: r.category,
           name: r.name,
           amount: amountOf(r),
+          rate: digits(r.rate),
+          hours: digits(r.hours),
         })),
         ...(showSummary
           ? { totalSales: salesAuto ? autoSales : totalSales, salesAuto }
@@ -199,38 +214,86 @@ export function SettlementSheet({
                   )}
 
                   <div className="space-y-2">
-                    {sectionRows.map((r) => (
-                      <div key={r.key} className="flex gap-2">
-                        <input
-                          value={r.name}
-                          onChange={(e) =>
-                            patchRow(r.key, { name: e.target.value })
-                          }
-                          placeholder={def.namePlaceholder}
-                          className="fld-input min-w-0 flex-1"
-                        />
-                        <input
-                          value={r.amount}
-                          onChange={(e) =>
-                            patchRow(r.key, { amount: e.target.value })
-                          }
-                          inputMode="numeric"
-                          placeholder="금액"
-                          className="fld-input w-[104px] shrink-0 text-right tabular-nums
-                                     sm:w-[140px] shell:w-[170px]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeRow(r.key)}
-                          aria-label="삭제"
-                          className="grid w-11 shrink-0 place-items-center rounded-[10px]
-                                     border border-line text-muted transition
-                                     hover:border-bad hover:text-bad"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                    {sectionRows.map((r) =>
+                      def.category === 'labor_part' ? (
+                        // 알바: 이름 + 시급 × 시간 = 금액(자동)
+                        <div key={r.key} className="flex flex-wrap items-center gap-2">
+                          <input
+                            value={r.name}
+                            onChange={(e) =>
+                              patchRow(r.key, { name: e.target.value })
+                            }
+                            placeholder="알바 이름"
+                            className="fld-input min-w-0 flex-1 basis-full sm:basis-0"
+                          />
+                          <input
+                            value={r.rate}
+                            onChange={(e) =>
+                              patchRow(r.key, { rate: e.target.value })
+                            }
+                            inputMode="numeric"
+                            placeholder="시급"
+                            className="fld-input w-[88px] shrink-0 text-right tabular-nums sm:w-[110px]"
+                          />
+                          <span className="shrink-0 text-[13px] text-muted">×</span>
+                          <input
+                            value={r.hours}
+                            onChange={(e) =>
+                              patchRow(r.key, { hours: e.target.value })
+                            }
+                            inputMode="decimal"
+                            placeholder="시간"
+                            className="fld-input w-[70px] shrink-0 text-right tabular-nums sm:w-[90px]"
+                          />
+                          <span className="shrink-0 text-[13px] text-muted">=</span>
+                          <span className="w-[96px] shrink-0 text-right text-[14px] font-bold tabular-nums sm:w-[120px]">
+                            {won(amountOf(r))}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeRow(r.key)}
+                            aria-label="삭제"
+                            className="grid w-11 shrink-0 place-items-center rounded-[10px]
+                                       border border-line text-muted transition
+                                       hover:border-bad hover:text-bad"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        // 직원·식자재·마케팅·고정비: 이름 + 금액
+                        <div key={r.key} className="flex gap-2">
+                          <input
+                            value={r.name}
+                            onChange={(e) =>
+                              patchRow(r.key, { name: e.target.value })
+                            }
+                            placeholder={def.namePlaceholder}
+                            className="fld-input min-w-0 flex-1"
+                          />
+                          <input
+                            value={r.amount}
+                            onChange={(e) =>
+                              patchRow(r.key, { amount: e.target.value })
+                            }
+                            inputMode="numeric"
+                            placeholder="금액"
+                            className="fld-input w-[104px] shrink-0 text-right tabular-nums
+                                       sm:w-[140px] shell:w-[170px]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeRow(r.key)}
+                            aria-label="삭제"
+                            className="grid w-11 shrink-0 place-items-center rounded-[10px]
+                                       border border-line text-muted transition
+                                       hover:border-bad hover:text-bad"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )
+                    )}
 
                     {sectionRows.length === 0 && (
                       <p className="py-3 text-center text-[13px] text-muted">

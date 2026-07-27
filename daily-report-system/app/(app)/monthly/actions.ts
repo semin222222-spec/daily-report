@@ -15,6 +15,9 @@ export interface ItemInput {
   category: SettlementCategory
   name: string
   amount: number
+  /** 알바 전용 — 시급·시간. 넘어오면 amount 대신 rate*hours 로 계산한다 */
+  rate?: number
+  hours?: number
 }
 
 export interface SavePayload {
@@ -95,18 +98,29 @@ export async function saveSettlement(
     return { ok: false, message: `저장 실패: ${delError.message}` }
   }
 
-  // 3) 새 줄 삽입 — 이름과 금액이 모두 비어 있는 줄은 버린다
+  // 3) 새 줄 삽입 — 이름·금액이 모두 비어 있는 줄은 버린다.
+  //    알바(labor_part)는 시급×시간으로 금액을 계산하고 시급·시간도 저장한다.
   const rows = payload.items
     .filter((i) => categories.includes(i.category))
-    .filter((i) => i.name.trim() !== '' || clampAmount(i.amount) > 0)
-    .map((i, idx) => ({
-      settlement_id: sheet.id,
-      store_id: activeStore.id,
-      category: i.category,
-      name: i.name.trim().slice(0, 80),
-      amount: clampAmount(i.amount),
-      sort_order: idx,
-    }))
+    .map((i, idx) => {
+      const isAlba = i.category === 'labor_part'
+      const rate = isAlba ? clampAmount(i.rate) : 0
+      const hours = isAlba ? Math.max(0, Number(i.hours) || 0) : 0
+      const amount = isAlba ? Math.round(rate * hours) : clampAmount(i.amount)
+      return {
+        settlement_id: sheet.id,
+        store_id: activeStore.id,
+        category: i.category,
+        name: i.name.trim().slice(0, 80),
+        amount,
+        rate,
+        hours,
+        sort_order: idx,
+        _empty: i.name.trim() === '' && amount === 0,
+      }
+    })
+    .filter((r) => !r._empty)
+    .map(({ _empty, ...r }) => r)
 
   if (rows.length > 0) {
     const { error: insError } = await supabase
