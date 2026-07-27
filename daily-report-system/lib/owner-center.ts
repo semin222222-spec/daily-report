@@ -62,6 +62,59 @@ export const OWNER_FOLDERS: OwnerFolder[] = [
   },
 ]
 
+/** DB 카테고리 (oc_categories) */
+export interface OcCategory {
+  id: string
+  folder: string
+  name: string
+  sort_order: number
+  created_at: string
+}
+
+export type OcPriority = '필수' | '권장' | '선택'
+export type OcStatus = '미구매' | '구매중' | '구매완료' | '보류'
+
+export const OC_PRIORITIES: OcPriority[] = ['필수', '권장', '선택']
+export const OC_STATUSES: OcStatus[] = ['미구매', '구매중', '구매완료', '보류']
+
+/** DB 품목 (oc_items) */
+export interface OcItem {
+  id: string
+  category_id: string
+  name: string
+  spec: string
+  qty: string
+  unit: string
+  est_price: number
+  buy_price: number
+  priority: OcPriority
+  status: OcStatus
+  manager: string
+  vendor: string
+  link: string
+  due_date: string
+  location: string
+  note: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+/** 필수여부 배지 색 */
+export const PRIORITY_STYLE: Record<OcPriority, string> = {
+  필수: 'bg-good/10 text-[#0a7d0a]',
+  권장: 'bg-warn/25 text-[#8a5a00]',
+  선택: 'bg-line-soft text-muted',
+}
+
+/** 구매상태 배지 색 */
+export const STATUS_STYLE: Record<OcStatus, string> = {
+  미구매: 'bg-bad/10 text-bad',
+  구매중: 'bg-s1/10 text-s1',
+  구매완료: 'bg-good/10 text-[#0a7d0a]',
+  보류: 'bg-line-soft text-muted',
+}
+
 export interface OrderItem {
   code: string
   name: string

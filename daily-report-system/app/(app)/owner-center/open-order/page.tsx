@@ -1,40 +1,53 @@
-import Link from 'next/link'
-import { OPEN_ORDER, OPEN_ORDER_TOTAL } from '@/lib/owner-center'
+import { createClient } from '@/lib/supabase/server'
+import type { OcCategory, OcItem } from '@/lib/owner-center'
+import { CategoryList } from './CategoryList'
 
 export const dynamic = 'force-dynamic'
 
-/** 01. 오픈 발주 — 카테고리 목록 */
-export default function OpenOrderHome() {
+/** 01. 오픈 발주 — 카테고리 목록 (DB) */
+export default async function OpenOrderHome() {
+  const supabase = createClient()
+
+  const [catRes, itemRes] = await Promise.all([
+    supabase
+      .from('oc_categories')
+      .select('*')
+      .eq('folder', 'open-order')
+      .order('sort_order', { ascending: true }),
+    supabase.from('oc_items').select('id, category_id, status'),
+  ])
+
+  const categories = (catRes.data ?? []) as OcCategory[]
+  const items = (itemRes.data ?? []) as Pick<
+    OcItem,
+    'id' | 'category_id' | 'status'
+  >[]
+
+  // 카테고리별 전체 품목 수 / 구매완료 수 — 카드 색을 정하는 데 쓴다
+  const counts: Record<string, number> = {}
+  const done: Record<string, number> = {}
+  for (const it of items) {
+    counts[it.category_id] = (counts[it.category_id] ?? 0) + 1
+    if (it.status === '구매완료')
+      done[it.category_id] = (done[it.category_id] ?? 0) + 1
+  }
+  const total = items.length
+
   return (
     <>
       <div className="mb-4">
         <div className="text-[12px] font-bold text-muted">01. 오픈 발주</div>
-        <h2 className="mt-0.5 text-[19px] font-extrabold">📦 오픈 발주 체크리스트</h2>
+        <h2 className="mt-0.5 text-[19px] font-extrabold">
+          📦 오픈 발주 체크리스트
+        </h2>
         <p className="mt-1 text-[13px] text-muted">
           신규 오픈 시 카테고리별로 준비할 품목입니다. 총{' '}
-          <b className="text-ink-2">{OPEN_ORDER_TOTAL}개</b> 품목 ·{' '}
-          {OPEN_ORDER.length}개 카테고리
+          <b className="text-ink-2">{total}개</b> 품목 · {categories.length}개
+          카테고리
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 shell:grid-cols-3">
-        {OPEN_ORDER.map((c) => (
-          <Link key={c.slug} href={`/owner-center/open-order/${c.slug}`}>
-            <div className="card h-full transition hover:border-brand hover:shadow-[0_8px_24px_rgba(240,84,45,.12)]">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-muted">
-                  {c.no}
-                </span>
-                <span className="text-muted">→</span>
-              </div>
-              <h3 className="mt-1 text-[15px] font-bold">{c.name}</h3>
-              <p className="mt-1 text-[12.5px] text-ink-2">
-                {c.items.length}개 품목
-              </p>
-            </div>
-          </Link>
-        ))}
-      </div>
+      <CategoryList categories={categories} counts={counts} done={done} />
     </>
   )
 }

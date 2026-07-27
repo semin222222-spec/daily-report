@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { OC_COOKIE } from '@/lib/owner-center'
 import { lockOwnerCenter } from './actions'
+import { BackButton } from './BackButton'
 import { PinGate } from './PinGate'
 
 export const dynamic = 'force-dynamic'
@@ -21,14 +22,15 @@ export default function OwnerCenterLayout({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-center gap-2">
+        <BackButton />
         <Link
           href="/owner-center"
           className="text-[13px] font-bold text-brand-deep hover:underline"
         >
           🔐 점주센터
         </Link>
-        <form action={lockOwnerCenter}>
+        <form action={lockOwnerCenter} className="ml-auto">
           <button type="submit" className="btn-ghost !px-3 !py-1.5 !text-xs">
             잠그기
           </button>
