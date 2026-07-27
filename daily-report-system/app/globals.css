@@ -54,6 +54,10 @@
   input[type='number'] {
     -moz-appearance: textfield;
   }
+  /* 체크박스는 기본 크기가 손가락에 너무 작다 */
+  input[type='checkbox'] {
+    @apply h-5 w-5 accent-brand;
+  }
 }
 
 @layer components {
@@ -64,8 +68,11 @@
   .tile-lab {
     @apply flex items-center gap-1.5 text-[12.5px] font-semibold text-muted;
   }
+  /* 모바일은 2단이라 폭이 126px밖에 안 된다.
+     ₩110,430,000 같은 8자리 금액이 27px로는 잘려서 단계적으로 키운다. */
   .tile-val {
-    @apply mt-2 text-[27px] font-extrabold tracking-[-0.02em] tabular-nums;
+    @apply mt-2 whitespace-nowrap text-[19px] font-extrabold tracking-[-0.02em]
+           tabular-nums sm:text-[22px] shell:text-[27px];
   }
   .card {
     @apply rounded-card border border-line bg-surface p-5 shadow-card;
@@ -81,24 +88,31 @@
   .fld-label {
     @apply mb-1.5 block text-[12.5px] font-semibold text-ink-2;
   }
+  /* 폰에서 16px 미만이면 iOS가 입력칸을 누를 때 화면을 확대해버린다.
+     그래서 모바일은 16px(text-base), 데스크톱은 14px(text-sm)로 둔다. */
   .fld-input {
-    @apply w-full rounded-[10px] border border-line bg-[#fbfaf8] px-3 py-[11px] text-sm
-           outline-none transition
-           focus:border-brand focus:bg-white focus:ring-[3px] focus:ring-brand/10;
+    @apply w-full rounded-[10px] border border-line bg-[#fbfaf8] px-3 py-[11px]
+           text-base outline-none transition
+           focus:border-brand focus:bg-white focus:ring-[3px] focus:ring-brand/10
+           shell:text-sm;
   }
   .form-grid {
     @apply grid grid-cols-1 gap-x-[18px] gap-y-3.5 shell:grid-cols-2;
   }
 
   /* ── 버튼 ──────────────────────────────────── */
+  /* min-h-[40px]: 손가락으로 누르는 최소 크기. !py- 로 패딩을 줄인
+     작은 버튼들도 이 높이 아래로는 내려가지 않는다. */
   .btn {
-    @apply rounded-[10px] border-0 bg-brand px-[18px] py-[11px] text-sm font-extrabold
-           text-white transition hover:bg-brand-deep
+    @apply inline-flex min-h-[40px] items-center justify-center rounded-[10px] border-0
+           bg-brand px-[18px] py-[11px] text-sm font-extrabold text-white transition
+           hover:bg-brand-deep
            disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand;
   }
   .btn-ghost {
-    @apply rounded-[10px] border border-line bg-white px-[18px] py-[11px] text-sm
-           font-extrabold text-ink-2 transition hover:border-brand hover:text-ink
+    @apply inline-flex min-h-[40px] items-center justify-center rounded-[10px] border
+           border-line bg-white px-[18px] py-[11px] text-sm font-extrabold text-ink-2
+           transition hover:border-brand hover:text-ink
            disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-row {

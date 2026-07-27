@@ -33,20 +33,25 @@ export default async function TodosPage() {
             key={t.id}
             className="flex items-center gap-3 border-b border-line-soft px-1 py-3 last:border-b-0"
           >
-            {/* 체크박스를 누르면 폼이 바로 제출된다 (JS 없이도 동작) */}
+            {/* 체크박스를 누르면 폼이 바로 제출된다 (JS 없이도 동작).
+                네모는 22px지만 버튼 자체는 40px라 손가락으로 누르기 쉽다. */}
             <form action={toggleTodo} className="flex items-center">
               <input type="hidden" name="id" value={t.id} />
               <input type="hidden" name="done" value={String(!t.done)} />
               <button
                 type="submit"
                 aria-label={t.done ? '완료 취소' : '완료 처리'}
-                className={`grid h-[18px] w-[18px] place-items-center rounded border-2 text-[11px] font-bold transition ${
-                  t.done
-                    ? 'border-brand bg-brand text-white'
-                    : 'border-line hover:border-brand'
-                }`}
+                className="-m-2 grid h-10 w-10 place-items-center p-2"
               >
-                {t.done ? '✓' : ''}
+                <span
+                  className={`grid h-[22px] w-[22px] place-items-center rounded border-2 text-[12px] font-bold transition ${
+                    t.done
+                      ? 'border-brand bg-brand text-white'
+                      : 'border-line'
+                  }`}
+                >
+                  {t.done ? '✓' : ''}
+                </span>
               </button>
             </form>
 
@@ -67,7 +72,8 @@ export default async function TodosPage() {
               <button
                 type="submit"
                 aria-label="삭제"
-                className="px-1 text-muted transition hover:text-bad"
+                className="-m-2 grid h-10 w-10 place-items-center p-2 text-muted
+                           transition hover:text-bad"
               >
                 ✕
               </button>

@@ -30,42 +30,58 @@ export default async function DashboardPage() {
   const { profile, stores, activeStore } = await getSessionContext()
 
   const today = todayKST()
-  // 이번 달 월정산 시트에 실제 인건비·고정비가 적혀 있으면 그 값을 우선한다
-  const inputs = await getPnlInputs(activeStore.id, today.slice(0, 7))
+  const shiftDays = (iso: string, n: number) => {
+    const d = parseISODate(iso)
+    d.setDate(d.getDate() + n)
+    return toISODate(d)
+  }
 
+  // ── 1단계: 서로 독립적인 조회를 한꺼번에 ────────────────────
+  // 이번 달 월정산 시트에 실제 인건비·고정비가 적혀 있으면 그 값을 우선한다.
   // 오늘 마감이 아직이면 가장 최근 마감일 숫자를 보여준다.
-  // (점장이 저녁에 마감을 넣기 전까지 대시보드가 0원으로 보이는 걸 막는다)
-  const todayClosing = await getClosing(activeStore.id, today)
-  const latest = todayClosing ?? (await getLatestClosing(activeStore.id))
+  const [inputs, todayClosing, latestAny] = await Promise.all([
+    getPnlInputs(activeStore.id, today.slice(0, 7)),
+    getClosing(activeStore.id, today),
+    getLatestClosing(activeStore.id),
+  ])
+
+  const latest = todayClosing ?? latestAny
   const anchorDate = latest?.date ?? today
   const isToday = anchorDate === today
+  const anchor = parseISODate(anchorDate)
 
-  // 전일 대비
-  const prevDate = (() => {
-    const d = parseISODate(anchorDate)
-    d.setDate(d.getDate() - 1)
-    return toISODate(d)
-  })()
-  const prevClosing = await getClosing(activeStore.id, prevDate)
+  // 기준일이 정해진 뒤에야 알 수 있는 날짜 범위들
+  const prevDate = shiftDays(anchorDate, -1)
+  const week = weekRange(anchorDate)
+  const prevWeek = {
+    start: shiftDays(week.start, -7),
+    end: shiftDays(week.end, -7),
+  }
+  const prevMonthAnchor = monthRange(
+    toISODate(new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1))
+  )
+
+  // ── 2단계: 기준일에 의존하는 조회를 한꺼번에 ────────────────
+  // 예전에는 이 여섯 개가 순차로 실행돼 왕복이 6번 쌓였다.
+  const [prevClosing, recent, monthClosings, weekRows, prevWeekRows, prevMonthRows] =
+    await Promise.all([
+      getClosing(activeStore.id, prevDate),
+      getRecentDays(activeStore.id, anchorDate, 7),
+      getMonthClosings(activeStore.id, anchor.getFullYear(), anchor.getMonth() + 1),
+      getClosingsBetween(activeStore.id, week.start, week.end),
+      getClosingsBetween(activeStore.id, prevWeek.start, prevWeek.end),
+      getClosingsBetween(activeStore.id, prevMonthAnchor.start, prevMonthAnchor.end),
+    ])
 
   const pnl = calcDaily(latest, inputs)
   const prevPnl = calcDaily(prevClosing, inputs)
   const salesDelta = deltaRate(pnl.sales, prevPnl.sales)
 
-  // 최근 7일 추이
-  const recent = await getRecentDays(activeStore.id, anchorDate, 7)
   const trendPoints = recent.map((r) => ({
     date: r.date,
     value: r.closing ? calcDaily(r.closing, inputs).sales : 0,
   }))
 
-  // 이번 달 누적
-  const anchor = parseISODate(anchorDate)
-  const monthClosings = await getMonthClosings(
-    activeStore.id,
-    anchor.getFullYear(),
-    anchor.getMonth() + 1
-  )
   const month = calcMonthly(monthClosings, inputs)
   const goal = inputs.settings?.monthly_goal ?? 0
   const goalPct = goal > 0 ? (month.sales / goal) * 100 : 0
@@ -75,32 +91,6 @@ export default async function DashboardPage() {
 
   // ── 일 / 주 / 월 매출 합산 ──────────────────────────────────
   // 직전 같은 기간과 비교해야 "늘었나 줄었나"가 바로 읽힌다.
-  const shiftDays = (iso: string, n: number) => {
-    const d = parseISODate(iso)
-    d.setDate(d.getDate() + n)
-    return toISODate(d)
-  }
-
-  const week = weekRange(anchorDate)
-  const prevWeek = {
-    start: shiftDays(week.start, -7),
-    end: shiftDays(week.end, -7),
-  }
-  const monthSpan = monthRange(anchorDate)
-  const prevMonthAnchor = (() => {
-    const d = parseISODate(anchorDate)
-    return monthRange(toISODate(new Date(d.getFullYear(), d.getMonth() - 1, 1)))
-  })()
-
-  const [weekRows, prevWeekRows, prevMonthRows] = await Promise.all([
-    getClosingsBetween(activeStore.id, week.start, week.end),
-    getClosingsBetween(activeStore.id, prevWeek.start, prevWeek.end),
-    getClosingsBetween(
-      activeStore.id,
-      prevMonthAnchor.start,
-      prevMonthAnchor.end
-    ),
-  ])
 
   const dayP = calcPeriod(latest ? [latest] : [], inputs)
   const prevDayP = calcPeriod(prevClosing ? [prevClosing] : [], inputs)
@@ -273,13 +263,17 @@ async function StoreCompare({
   stores: Awaited<ReturnType<typeof getSessionContext>>['stores']
   anchorDate: string
 }) {
+  const ym = anchorDate.slice(0, 7)
   const rows = await Promise.all(
     stores.map(async (s) => {
-      const inputs = await getPnlInputs(s.id, anchorDate.slice(0, 7))
-      // 각 매장의 마감 진도가 다를 수 있으므로 해당 날짜가 없으면 그 매장의 최근 마감을 쓴다
-      const closing =
-        (await getClosing(s.id, anchorDate)) ?? (await getLatestClosing(s.id))
-      const p = calcDaily(closing, inputs)
+      // 매장 하나 안에서도 세 조회가 서로 독립이라 동시에 던진다.
+      // 각 매장의 마감 진도가 다를 수 있으므로 해당 날짜가 없으면 최근 마감을 쓴다.
+      const [inputs, onDate, latest] = await Promise.all([
+        getPnlInputs(s.id, ym),
+        getClosing(s.id, anchorDate),
+        getLatestClosing(s.id),
+      ])
+      const p = calcDaily(onDate ?? latest, inputs)
       return { store: s, sales: p.sales, profit: p.operatingProfit }
     })
   )

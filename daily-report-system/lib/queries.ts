@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { createClient } from './supabase/server'
 import { toISODate, parseISODate } from './format'
 import type {
@@ -17,7 +18,7 @@ import type { PnlInputs } from './pnl'
  * 손익 계산에 필요한 매장 부속 데이터(직원·고정비·설정)를 한 번에 가져온다.
  * 모든 손익 화면이 이걸로 시작한다.
  */
-export async function getPnlInputs(
+export const getPnlInputs = cache(async function getPnlInputs(
   storeId: string,
   /**
    * 'YYYY-MM'. 주면 그 달 월정산 시트에 적힌 실제 인건비·고정비를 우선 적용한다.
@@ -58,7 +59,7 @@ export async function getPnlInputs(
     laborOverride: labor > 0 ? labor : null,
     fixedOverride: fixed > 0 ? fixed : null,
   }
-}
+})
 
 /** 특정 날짜의 마감 (없으면 null) */
 export async function getClosing(

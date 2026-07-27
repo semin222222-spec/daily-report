@@ -136,9 +136,34 @@ export function AppShell({
             </div>
           </div>
 
-          {/* 매장 스위처 — owner만, 매장이 2개 이상일 때만 */}
+          {/* 매장 스위처 — owner만, 매장이 2개 이상일 때만.
+              모바일에서는 셀렉트로 접는다. 매장이 늘어나면 버튼이 여러 줄로
+              접히면서 sticky 헤더가 화면의 20%를 잡아먹기 때문. */}
           {isOwner && stores.length > 1 && (
-            <div className="ml-auto flex items-center gap-1.5 rounded-xl border border-line bg-white p-1">
+            <select
+              aria-label="매장 선택"
+              value={activeStore.id}
+              disabled={pending}
+              onChange={(e) => {
+                const id = e.target.value
+                startTransition(() => {
+                  switchStore(id)
+                })
+              }}
+              className="ml-auto max-w-[46vw] shrink-0 truncate rounded-xl border border-line
+                         bg-white px-3 py-2 text-[13px] font-bold text-ink outline-none
+                         disabled:opacity-60 shell:hidden"
+            >
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {isOwner && stores.length > 1 && (
+            <div className="ml-auto hidden items-center gap-1.5 rounded-xl border border-line bg-white p-1 shell:flex">
               {stores.map((s) => {
                 const active = s.id === activeStore.id
                 return (
@@ -175,7 +200,7 @@ export function AppShell({
 
           {/* manager는 스위처 대신 본인 매장 표시 */}
           {!isOwner && (
-            <div className="ml-auto flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2">
               <StoreLogo
                 tag={activeStore.tag}
                 name={activeStore.name}

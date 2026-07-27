@@ -120,7 +120,7 @@ export function LoginForm({
             placeholder="아이디"
             value={loginId}
             onChange={(e) => setLoginId(e.target.value)}
-            className="w-full rounded-[11px] border border-line bg-[#fbfaf8] px-[13px] py-3 text-[15px]
+            className="w-full rounded-[11px] border border-line bg-[#fbfaf8] px-[13px] py-3 text-base
                        outline-none transition focus:border-brand focus:bg-white focus:ring-[3px] focus:ring-brand/[.12]"
           />
         </div>
@@ -137,7 +137,7 @@ export function LoginForm({
             placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-[11px] border border-line bg-[#fbfaf8] px-[13px] py-3 text-[15px]
+            className="w-full rounded-[11px] border border-line bg-[#fbfaf8] px-[13px] py-3 text-base
                        outline-none transition focus:border-brand focus:bg-white focus:ring-[3px] focus:ring-brand/[.12]"
           />
         </div>

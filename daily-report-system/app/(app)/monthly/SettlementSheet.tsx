@@ -151,7 +151,7 @@ export function SettlementSheet({
               disabled={salesAuto}
               inputMode="numeric"
               placeholder="원"
-              className="fld-input w-full max-w-[240px] text-right font-extrabold tabular-nums
+              className="fld-input min-w-0 flex-1 text-right font-extrabold tabular-nums sm:max-w-[240px] sm:flex-none sm:w-full
                          disabled:cursor-not-allowed disabled:opacity-70"
             />
             <span className="text-[22px] font-extrabold tabular-nums">
@@ -216,14 +216,16 @@ export function SettlementSheet({
                           }
                           inputMode="numeric"
                           placeholder="금액"
-                          className="fld-input w-[130px] text-right tabular-nums shell:w-[170px]"
+                          className="fld-input w-[104px] shrink-0 text-right tabular-nums
+                                     sm:w-[140px] shell:w-[170px]"
                         />
                         <button
                           type="button"
                           onClick={() => removeRow(r.key)}
                           aria-label="삭제"
-                          className="shrink-0 rounded-[10px] border border-line px-3
-                                     text-muted transition hover:border-bad hover:text-bad"
+                          className="grid w-11 shrink-0 place-items-center rounded-[10px]
+                                     border border-line text-muted transition
+                                     hover:border-bad hover:text-bad"
                         >
                           ✕
                         </button>
