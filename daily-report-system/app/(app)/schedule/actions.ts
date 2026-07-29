@@ -61,6 +61,48 @@ export async function setShift(
 }
 
 /**
+ * 특정 날짜에 한 그룹(직원 또는 알바) 전원을 한 번에 배정한다.
+ * 이미 배정된 사람은 그대로 두고, 안 된 사람만 추가된다.
+ * 반환: 그 날 그 그룹으로 실제 배정된 직원 id 목록 (화면 낙관적 갱신용)
+ */
+export async function assignGroupToDate(
+  date: string,
+  empType: '직원' | '알바'
+): Promise<{ ok: boolean; message?: string; staffIds?: string[] }> {
+  const { profile, activeStore } = await getSessionContext()
+  if (!canWriteStore(profile, activeStore.id)) {
+    return { ok: false, message: '권한이 없습니다.' }
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { ok: false, message: '날짜가 올바르지 않습니다.' }
+  }
+
+  const supabase = createClient()
+  const { data: staff } = await supabase
+    .from('staff')
+    .select('id')
+    .eq('store_id', activeStore.id)
+    .eq('is_active', true)
+    .eq('emp_type', empType)
+
+  const ids = (staff ?? []).map((s) => s.id)
+  if (ids.length === 0) return { ok: true, staffIds: [] }
+
+  const { error } = await supabase.from('shifts').upsert(
+    ids.map((staff_id) => ({
+      store_id: activeStore.id,
+      staff_id,
+      date,
+      code: '출근',
+    })),
+    { onConflict: 'staff_id,date' }
+  )
+
+  if (error) return { ok: false, message: error.message }
+  return { ok: true, staffIds: ids }
+}
+
+/**
  * 날짜별 특이사항 · 공휴일 지정.
  *
  * 넘어온 필드만 갱신한다. 특이사항을 저장할 때 공휴일 표시가 풀리면 안 되므로

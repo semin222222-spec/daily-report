@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { parseISODate } from '@/lib/format'
 import type { ScheduleDay, Shift, Staff } from '@/lib/types'
-import { setScheduleDay, setShift } from './actions'
+import { assignGroupToDate, setScheduleDay, setShift } from './actions'
 
 const DAY_KO = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -69,6 +69,27 @@ export function ScheduleBoard({
     })
   }
 
+  /** 그 날 한 그룹(직원/알바) 전원을 한 번에 추가 */
+  function addGroup(date: string, empType: '직원' | '알바') {
+    const groupIds = staff
+      .filter((s) => s.emp_type === empType)
+      .map((s) => s.id)
+    // 낙관적으로 먼저 전원 배정
+    const before = new Set(assigned)
+    setAssigned((prev) => {
+      const next = new Set(prev)
+      groupIds.forEach((id) => next.add(cellKey(id, date)))
+      return next
+    })
+    startTransition(async () => {
+      const res = await assignGroupToDate(date, empType)
+      if (!res.ok) {
+        setAssigned(before)
+        setFailed(res.message ?? '저장에 실패했습니다.')
+      }
+    })
+  }
+
   function toggleHoliday(date: string) {
     const next = !holidays[date]
     setHolidays((h) => ({ ...h, [date]: next }))
@@ -125,7 +146,8 @@ export function ScheduleBoard({
     <div className="card">
       <h3 className="card-title">근무 스케줄</h3>
       <p className="card-sub">
-        날짜별로 나오는 사람을 세워둡니다. <b>+ 인원</b>으로 추가하고 이름 옆
+        날짜별로 나오는 사람을 세워둡니다. <b>직원 +N · 알바 +N</b>으로 그룹
+        전원을 한 번에, <b>+ 인원</b>으로 한 명씩 추가하고 이름 옆
         ✕로 뺍니다. 날짜를 누르면 <b>공휴일(빨간날)</b>이 됩니다. 저장은
         자동입니다.
       </p>
@@ -221,6 +243,39 @@ export function ScheduleBoard({
                     없음
                   </p>
                 )}
+
+                {/* 그룹 전원 한 번에 추가 — 남은 사람이 있을 때만 */}
+                {(() => {
+                  const staffLeft = available.filter(
+                    (s) => s.emp_type === '직원'
+                  ).length
+                  const albaLeft = available.filter(
+                    (s) => s.emp_type === '알바'
+                  ).length
+                  if (staffLeft === 0 && albaLeft === 0) return null
+                  return (
+                    <div className="flex gap-1">
+                      {staffLeft > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => addGroup(d, '직원')}
+                          className="flex-1 rounded-[7px] bg-s2/10 px-1 py-1 text-[11px] font-bold text-s2 transition hover:bg-s2/20"
+                        >
+                          직원 +{staffLeft}
+                        </button>
+                      )}
+                      {albaLeft > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => addGroup(d, '알바')}
+                          className="flex-1 rounded-[7px] bg-s3/15 px-1 py-1 text-[11px] font-bold text-[#8a5a00] transition hover:bg-s3/25"
+                        >
+                          알바 +{albaLeft}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 {/* 추가 — 아직 안 넣은 사람만 목록에 뜬다 */}
                 {available.length > 0 && (
