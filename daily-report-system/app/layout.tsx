@@ -13,14 +13,37 @@ import './globals.css'
  */
 export const preferredRegion = 'icn1'
 
+const SITE_URL = 'https://daily-report-ema5.vercel.app'
+const TITLE = '삐딱 데일리 리포트'
+const DESC = '주식회사 삐딱 매장정산 · 점주센터'
+
 export const metadata: Metadata = {
-  title: '주식회사 삐딱 · 매장정산',
-  description: '삐딱, 우삼집, 쑥고개 — 세 매장의 매출과 손익을 한 곳에서 관리하는 삐딱 전용 정산 시스템',
+  // 상대 경로 이미지를 절대 URL로 바꿔주는 기준. 링크 미리보기에 꼭 필요하다.
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESC,
   applicationName: '삐딱 전용앱',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: '/logos/bbiddak.png',
+    shortcut: '/logos/bbiddak.png',
     apple: '/icons/apple-touch-icon.png',
+  },
+  // 카톡·메신저·SNS 링크 미리보기 카드에 새 로고가 뜨게 한다
+  openGraph: {
+    type: 'website',
+    siteName: '삐딱 전용앱',
+    title: TITLE,
+    description: DESC,
+    url: SITE_URL,
+    locale: 'ko_KR',
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: '삐딱' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESC,
+    images: ['/og.png'],
   },
   // iOS에서 홈 화면에 추가하면 전체화면 앱처럼 뜨게 한다
   appleWebApp: {
