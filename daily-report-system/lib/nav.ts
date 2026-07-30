@@ -22,6 +22,8 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/labor', icon: '👥', label: '인건비' },
   { href: '/schedule', icon: '🗓️', label: '근무 스케줄' },
   { href: '/todos', icon: '✅', label: '오늘 할일' },
+  // 임원전용 — 기본은 모든 점장에게 숨김. 오너가 설정에서 계정마다 열어준다.
+  { href: '/executive', icon: '👔', label: '임원전용' },
   // 네이버·카카오가 리뷰를 외부로 내보내는 공식 API가 없어 수동 입력뿐이라 숨김.
   // 블로그 리뷰 자동 수집을 붙이면 그때 다시 켠다. /reviews 로 직접 들어가면 동작한다.
   { href: '/reviews', icon: '⭐', label: '리뷰 모아보기', hidden: true },

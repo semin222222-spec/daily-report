@@ -195,6 +195,18 @@ export interface Review {
   created_at: string
 }
 
+/** 임원전용 회의록 */
+export interface MeetingNote {
+  id: string
+  title: string
+  meeting_date: string | null
+  attendees: string
+  body: string
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 /** 로그인한 사용자 + 접근 가능한 매장 목록 — 앱 셸이 매 요청마다 조회한다 */
 export interface SessionContext {
   profile: Profile
