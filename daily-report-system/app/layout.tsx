@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { PWARegister } from '@/components/PWARegister'
 import './globals.css'
 
 /**
@@ -15,12 +16,26 @@ export const preferredRegion = 'icn1'
 export const metadata: Metadata = {
   title: '주식회사 삐딱 · 매장정산',
   description: '삐딱, 우삼집, 쑥고개 — 세 매장의 매출과 손익을 한 곳에서 관리하는 삐딱 전용 정산 시스템',
-  icons: { icon: '/logos/bbiddak.png' },
+  applicationName: '삐딱 전용앱',
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/logos/bbiddak.png',
+    apple: '/icons/apple-touch-icon.png',
+  },
+  // iOS에서 홈 화면에 추가하면 전체화면 앱처럼 뜨게 한다
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: '삐딱 전용앱',
+  },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // 앱처럼 쓸 때 확대/축소를 막아 데스크톱 앱 느낌을 준다
+  maximumScale: 1,
+  userScalable: false,
   themeColor: '#191512',
 }
 
@@ -31,7 +46,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body className="font-sans">{children}</body>
+      <body className="font-sans">
+        <PWARegister />
+        {children}
+      </body>
     </html>
   )
 }
