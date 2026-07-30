@@ -1,4 +1,5 @@
 import { BrandLockup, StoreLogo } from '@/components/BrandMark'
+import { InstallButton } from '@/components/InstallButton'
 import { getAvailableLogos } from '@/lib/logos'
 import { createClient } from '@/lib/supabase/server'
 import type { Store } from '@/lib/types'
@@ -125,6 +126,9 @@ export default async function LoginPage({
               </div>
             ))}
           </div>
+
+          {/* 홈 화면에 바로 설치 (안드로이드는 버튼, 아이폰은 안내) */}
+          <InstallButton />
         </div>
 
         {/* ── 우: 로그인 폼 ──────────────────────── */}
