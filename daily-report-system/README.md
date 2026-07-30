@@ -3,7 +3,7 @@
 주식회사 삐딱 매장정산 웹앱 — 삐딱(본점) · 우삼집 · 쑥고개 세 매장의 매출과 손익을 한 곳에서 관리한다.
 
 - **스택**: Next.js 14 (App Router) · TypeScript · Tailwind CSS · Supabase (Auth + Postgres + RLS)
-- **배포**: Vercel — `daily-report-ema5.vercel.app`
+- **배포**: Vercel — `bbiddak.vercel.app`
 - **디자인 원본**: `../ppidak-report.html` (색상·레이아웃·용어의 기준)
 
 ---
@@ -180,7 +180,7 @@ public/logos/ssuk.png     ⬜ 없음 → 타이포 배지로 자동 폴백
 앱 코드는 손댈 필요가 없다.
 
 ```bash
-curl -X POST https://daily-report-ema5.vercel.app/api/reviews \
+curl -X POST https://bbiddak.vercel.app/api/reviews \
   -H 'content-type: application/json' \
   -H "x-ingest-secret: $REVIEW_INGEST_SECRET" \
   -d '{
@@ -203,7 +203,7 @@ curl -X POST https://daily-report-ema5.vercel.app/api/reviews \
 
 ## 7. Vercel 배포 (기존 프로젝트 유지)
 
-도메인 `daily-report-ema5.vercel.app` 과 Vercel 프로젝트는 **그대로 쓴다.** 코드만 교체된다.
+도메인 `bbiddak.vercel.app` 과 Vercel 프로젝트는 **그대로 쓴다.** 코드만 교체된다.
 
 ### 7-1. 환경변수 등록
 

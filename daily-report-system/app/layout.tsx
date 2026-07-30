@@ -13,7 +13,7 @@ import './globals.css'
  */
 export const preferredRegion = 'icn1'
 
-const SITE_URL = 'https://daily-report-ema5.vercel.app'
+const SITE_URL = 'https://bbiddak.vercel.app'
 const TITLE = '삐딱 데일리 리포트'
 const DESC = '주식회사 삐딱 매장정산 · 점주센터'
 
