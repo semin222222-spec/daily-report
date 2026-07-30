@@ -69,6 +69,29 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
+      <head>
+        {/*
+          "설치 가능" 신호(beforeinstallprompt)는 페이지가 뜨자마자 아주 이른 시점에
+          단 한 번 발생한다. React 리스너가 붙기 전에 놓치지 않도록, 여기서 먼저
+          가로채 window 에 저장해둔다. InstallButton 이 나중에 이 값을 꺼내 쓴다.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.__bip = null;
+              window.addEventListener('beforeinstallprompt', function (e) {
+                e.preventDefault();
+                window.__bip = e;
+                window.dispatchEvent(new Event('bip-ready'));
+              });
+              window.addEventListener('appinstalled', function () {
+                window.__bip = null;
+                window.dispatchEvent(new Event('bip-installed'));
+              });
+            `,
+          }}
+        />
+      </head>
       <body className="font-sans">
         <PWARegister />
         {children}

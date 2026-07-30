@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState, useTransition } from 'react'
 import { logout, switchStore } from '@/app/(app)/actions'
 import { StoreLogo } from '@/components/BrandMark'
+import { InstallButton } from '@/components/InstallButton'
 import { formatDateKo, todayKST } from '@/lib/format'
 import { navLabel, type NavItem } from '@/lib/nav'
 import type { SessionContext } from '@/lib/types'
@@ -101,10 +102,13 @@ export function AppShell({
               {isOwner ? '전체 관리자 · 모든 기능' : '매장 점장'}
             </span>
           </div>
+          <div className="mt-1.5">
+            <InstallButton variant="sidebar" />
+          </div>
           <form action={logout}>
             <button
               type="submit"
-              className="mt-1.5 w-full rounded-[9px] border border-white/[.12] bg-white/[.06]
+              className="w-full rounded-[9px] border border-white/[.12] bg-white/[.06]
                          py-2.5 text-[13px] font-semibold text-white/80
                          transition hover:bg-white/[.12] hover:text-white"
             >
