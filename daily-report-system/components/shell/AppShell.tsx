@@ -6,7 +6,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { logout, switchStore } from '@/app/(app)/actions'
 import { StoreLogo } from '@/components/BrandMark'
 import { formatDateKo, todayKST } from '@/lib/format'
-import { VISIBLE_NAV_ITEMS, navLabel } from '@/lib/nav'
+import { navLabel, type NavItem } from '@/lib/nav'
 import type { SessionContext } from '@/lib/types'
 
 /**
@@ -16,11 +16,14 @@ import type { SessionContext } from '@/lib/types'
 export function AppShell({
   session,
   logos,
+  navItems,
   children,
 }: {
   session: SessionContext
   /** 매장 id → 로고 경로 (없으면 null). 브랜드 기준으로 서버에서 확인해 넘겨준다 */
   logos: Record<string, string | null>
+  /** 이 계정 권한으로 보이는 메뉴만 (서버에서 필터링) */
+  navItems: NavItem[]
   children: React.ReactNode
 }) {
   const { profile, stores, activeStore } = session
@@ -68,7 +71,7 @@ export function AppShell({
         </div>
 
         <nav className="flex flex-col overflow-y-auto">
-          {VISIBLE_NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const active = pathname.startsWith(item.href)
             return (
               <Link

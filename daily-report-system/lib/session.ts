@@ -2,6 +2,7 @@ import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from './supabase/server'
+import { resolveLevel } from './permissions'
 import type { Profile, SessionContext, Store } from './types'
 
 export const ACTIVE_STORE_COOKIE = 'bbiddak_active_store'
@@ -76,6 +77,27 @@ function resolveActiveStore(profile: Profile, stores: Store[]): Store {
 /** owner 전용 화면·액션에서 호출 — 점장이면 대시보드로 되돌린다 */
 export function assertOwner(profile: Profile) {
   if (profile.role !== 'owner') redirect('/dashboard')
+}
+
+/**
+ * 메뉴 권한을 확인하고 세션을 돌려준다.
+ *   숨김이면 대시보드로 되돌린다.
+ *   조회만이면 readOnly=true (페이지가 폼을 잠근다).
+ */
+export async function guardMenu(
+  menuKey: string
+): Promise<SessionContext & { readOnly: boolean }> {
+  const ctx = await getSessionContext()
+  const level = resolveLevel(ctx.profile.role, ctx.profile.permissions, menuKey)
+  if (level === 'hidden') redirect('/dashboard')
+  return { ...ctx, readOnly: level === 'view' }
+}
+
+/** 서버 액션에서 이 메뉴를 수정할 권한이 있는지 (없으면 throw) */
+export function assertMenuEdit(profile: Profile, menuKey: string) {
+  if (resolveLevel(profile.role, profile.permissions, menuKey) !== 'edit') {
+    throw new Error('이 메뉴를 수정할 권한이 없습니다.')
+  }
 }
 
 /**

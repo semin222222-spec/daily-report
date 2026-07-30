@@ -1,18 +1,21 @@
+import { ReadOnlyBanner } from '@/components/ui/ReadOnlyBanner'
 import { getTodos } from '@/lib/queries'
-import { getSessionContext } from '@/lib/session'
+import { getSessionContext, guardMenu } from '@/lib/session'
 import { addTodo, deleteTodo, toggleTodo } from './actions'
 
 export const dynamic = 'force-dynamic'
 
 export default async function TodosPage() {
-  const { activeStore } = await getSessionContext()
+  const { activeStore, readOnly } = await guardMenu('/todos')
   const todos = await getTodos(activeStore.id)
 
   const open = todos.filter((t) => !t.done)
   const done = todos.filter((t) => t.done)
 
   return (
-    <div className="card">
+    <>
+      {readOnly && <ReadOnlyBanner />}
+      <div className="card">
       <h3 className="card-title">
         오늘 할일 <span className="pill pill-w">{activeStore.name}</span>
       </h3>
@@ -106,5 +109,6 @@ export default async function TodosPage() {
         </button>
       </form>
     </div>
+    </>
   )
 }

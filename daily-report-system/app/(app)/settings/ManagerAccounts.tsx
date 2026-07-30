@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ActionForm } from '@/components/ui/ActionForm'
 import type { Profile, Store } from '@/lib/types'
+import { PermissionEditor } from './PermissionEditor'
 import {
   createManagerAccount,
   deleteManagerAccount,
@@ -126,8 +127,11 @@ function AccountRow({
   isSelf: boolean
   disabled: boolean
 }) {
-  // 'idle' → 버튼만 / 'confirm' → 삭제 확인 / 'password' → 비번 재설정 폼
-  const [mode, setMode] = useState<'idle' | 'confirm' | 'password'>('idle')
+  // 'idle' → 버튼만 / 'perm' → 권한 설정 / 'confirm' → 삭제 / 'password' → 비번
+  const [mode, setMode] = useState<
+    'idle' | 'perm' | 'confirm' | 'password'
+  >('idle')
+  const toggle = (m: typeof mode) => setMode(mode === m ? 'idle' : m)
 
   return (
     <>
@@ -137,11 +141,18 @@ function AccountRow({
         <td>{storeName}</td>
         <td>점장</td>
         <td className="text-right">
-          <div className="flex justify-end gap-1.5">
+          <div className="flex flex-wrap justify-end gap-1.5">
+            <button
+              type="button"
+              onClick={() => toggle('perm')}
+              className="btn-ghost !px-3 !py-1.5 !text-xs hover:!border-brand hover:!text-brand-deep"
+            >
+              권한 설정
+            </button>
             <button
               type="button"
               disabled={disabled}
-              onClick={() => setMode(mode === 'password' ? 'idle' : 'password')}
+              onClick={() => toggle('password')}
               className="btn-ghost !px-3 !py-1.5 !text-xs"
             >
               비번 변경
@@ -150,7 +161,7 @@ function AccountRow({
               type="button"
               disabled={disabled || isSelf}
               title={isSelf ? '본인 계정은 삭제할 수 없습니다' : undefined}
-              onClick={() => setMode(mode === 'confirm' ? 'idle' : 'confirm')}
+              onClick={() => toggle('confirm')}
               className="btn-ghost !px-3 !py-1.5 !text-xs hover:!border-bad hover:!text-bad"
             >
               삭제
@@ -158,6 +169,14 @@ function AccountRow({
           </div>
         </td>
       </tr>
+
+      {mode === 'perm' && (
+        <tr>
+          <td colSpan={5} className="!text-left">
+            <PermissionEditor account={account} />
+          </td>
+        </tr>
+      )}
 
       {mode === 'confirm' && (
         <tr>

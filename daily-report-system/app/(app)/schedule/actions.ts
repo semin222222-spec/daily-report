@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { canWriteStore, getSessionContext } from '@/lib/session'
+import { canEdit } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 
 /**
@@ -19,6 +20,9 @@ export async function setShift(
   const { profile, activeStore } = await getSessionContext()
   if (!canWriteStore(profile, activeStore.id)) {
     return { ok: false, message: '권한이 없습니다.' }
+  }
+  if (!canEdit(profile.role, profile.permissions, '/schedule')) {
+    return { ok: false, message: '근무 스케줄 수정 권한이 없습니다.' }
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return { ok: false, message: '날짜가 올바르지 않습니다.' }
@@ -73,6 +77,9 @@ export async function assignGroupToDate(
   if (!canWriteStore(profile, activeStore.id)) {
     return { ok: false, message: '권한이 없습니다.' }
   }
+  if (!canEdit(profile.role, profile.permissions, '/schedule')) {
+    return { ok: false, message: '근무 스케줄 수정 권한이 없습니다.' }
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return { ok: false, message: '날짜가 올바르지 않습니다.' }
   }
@@ -116,6 +123,9 @@ export async function setScheduleDay(
   if (!canWriteStore(profile, activeStore.id)) {
     return { ok: false, message: '권한이 없습니다.' }
   }
+  if (!canEdit(profile.role, profile.permissions, '/schedule')) {
+    return { ok: false, message: '근무 스케줄 수정 권한이 없습니다.' }
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return { ok: false, message: '날짜가 올바르지 않습니다.' }
   }
@@ -149,6 +159,7 @@ export async function addScheduleStaff(
 ): Promise<void> {
   const { profile, activeStore } = await getSessionContext()
   if (!canWriteStore(profile, activeStore.id)) return
+  if (!canEdit(profile.role, profile.permissions, '/schedule')) return
 
   const name = String(formData.get('name') ?? '').trim()
   if (!name) return
@@ -177,6 +188,7 @@ export async function removeScheduleStaff(formData: FormData): Promise<void> {
   const { profile, activeStore } = await getSessionContext()
   const id = String(formData.get('id') ?? '')
   if (!id || !canWriteStore(profile, activeStore.id)) return
+  if (!canEdit(profile.role, profile.permissions, '/schedule')) return
 
   const supabase = createClient()
   await supabase
@@ -198,6 +210,9 @@ export async function setHealthCert(
   const { profile, activeStore } = await getSessionContext()
   if (!canWriteStore(profile, activeStore.id)) {
     return { ok: false, message: '권한이 없습니다.' }
+  }
+  if (!canEdit(profile.role, profile.permissions, '/schedule')) {
+    return { ok: false, message: '근무 스케줄 수정 권한이 없습니다.' }
   }
   if (issued && !/^\d{4}-\d{2}-\d{2}$/.test(issued)) {
     return { ok: false, message: '날짜 형식이 올바르지 않습니다.' }

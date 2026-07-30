@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESC,
-  applicationName: '삐딱 전용앱',
+  applicationName: '(주)삐딱 전용앱',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: '/logos/bbiddak.png',
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: '삐딱 전용앱',
+    title: '(주)삐딱 전용앱',
   },
 }
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { canWriteStore, getSessionContext } from '@/lib/session'
+import { canEdit } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 
 export interface ActionResult {
@@ -28,6 +29,9 @@ export async function saveClosing(
   const storeId = String(formData.get('store_id') ?? '')
   if (!canWriteStore(profile, storeId) || storeId !== activeStore.id) {
     return { ok: false, message: '이 매장에 저장할 권한이 없습니다.' }
+  }
+  if (!canEdit(profile.role, profile.permissions, '/closing')) {
+    return { ok: false, message: '일마감 수정 권한이 없습니다.' }
   }
 
   const date = String(formData.get('date') ?? '')

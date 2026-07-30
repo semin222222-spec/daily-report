@@ -1,8 +1,9 @@
+import { ReadOnlyBanner } from '@/components/ui/ReadOnlyBanner'
 import Link from 'next/link'
 import { MonthPicker } from '@/components/ui/MonthPicker'
 import { todayKST } from '@/lib/format'
 import { getSettlement, getStaff } from '@/lib/queries'
-import { getSessionContext } from '@/lib/session'
+import { getSessionContext, guardMenu } from '@/lib/session'
 import { LABOR_CATEGORIES, shiftYm, ymLabel } from '@/lib/settlement'
 import { SettlementSheet } from '../monthly/SettlementSheet'
 import { HealthCerts } from './HealthCerts'
@@ -14,7 +15,7 @@ export default async function LaborPage({
 }: {
   searchParams: { ym?: string }
 }) {
-  const { activeStore } = await getSessionContext()
+  const { activeStore, readOnly } = await guardMenu('/labor')
 
   const today = todayKST()
   const ym =
@@ -30,6 +31,7 @@ export default async function LaborPage({
 
   return (
     <>
+      {readOnly && <ReadOnlyBanner />}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <Link href={`/labor?ym=${shiftYm(ym, -1)}`} className="btn-ghost !py-2 text-[13px]">
           ← 지난달

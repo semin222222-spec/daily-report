@@ -1,3 +1,4 @@
+import { ReadOnlyBanner } from '@/components/ui/ReadOnlyBanner'
 import Link from 'next/link'
 import {
   formatDateShort,
@@ -12,7 +13,7 @@ import {
 } from '@/lib/format'
 import { calcPeriod, resolveFixed, resolveLabor } from '@/lib/pnl'
 import { getClosingsBetween, getPnlInputs } from '@/lib/queries'
-import { getSessionContext } from '@/lib/session'
+import { getSessionContext, guardMenu } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import type { ManagerReport, ReportPeriod } from '@/lib/types'
 import { deleteReport } from './actions'
@@ -32,7 +33,7 @@ export default async function ManagerReportPage({
 }: {
   searchParams: { type?: string; start?: string }
 }) {
-  const { activeStore } = await getSessionContext()
+  const { activeStore, readOnly } = await guardMenu('/manager-report')
   const supabase = createClient()
 
   const periodType: ReportPeriod =
@@ -100,6 +101,7 @@ export default async function ManagerReportPage({
 
   return (
     <>
+      {readOnly && <ReadOnlyBanner />}
       {/* ── 기간 선택 ─────────────────────────────── */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-xl border border-line bg-white p-1">

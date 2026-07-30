@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { canWriteStore, getSessionContext } from '@/lib/session'
+import { canEdit } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 
 export interface ActionResult {
@@ -29,6 +30,9 @@ export async function saveReport(
   const { profile, activeStore } = await getSessionContext()
   if (!canWriteStore(profile, activeStore.id)) {
     return { ok: false, message: '이 매장에 저장할 권한이 없습니다.' }
+  }
+  if (!canEdit(profile.role, profile.permissions, '/manager-report')) {
+    return { ok: false, message: '점장보고서 수정 권한이 없습니다.' }
   }
 
   const periodType = String(formData.get('period_type') ?? 'weekly')
@@ -70,6 +74,7 @@ export async function deleteReport(formData: FormData): Promise<void> {
   const { profile, activeStore } = await getSessionContext()
   const id = String(formData.get('id') ?? '')
   if (!id || !canWriteStore(profile, activeStore.id)) return
+  if (!canEdit(profile.role, profile.permissions, '/manager-report')) return
 
   const supabase = createClient()
   await supabase

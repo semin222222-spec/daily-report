@@ -2,13 +2,23 @@
 
 import { revalidatePath } from 'next/cache'
 import { canWriteStore, getSessionContext } from '@/lib/session'
+import { canEdit } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 import type { Assignee } from '@/lib/types'
 
 const ASSIGNEES: Assignee[] = ['홀', '주방', '점장']
 
+/** 오늘 할일을 수정할 권한이 있는가 */
+function canEditTodos(profile: {
+  role: 'owner' | 'manager'
+  permissions: Record<string, 'hidden' | 'view' | 'edit'>
+}) {
+  return canEdit(profile.role, profile.permissions, '/todos')
+}
+
 export async function addTodo(formData: FormData): Promise<void> {
   const { profile, activeStore } = await getSessionContext()
+  if (!canEditTodos(profile)) return
 
   const text = String(formData.get('text') ?? '').trim()
   if (!text) return
@@ -30,6 +40,7 @@ export async function addTodo(formData: FormData): Promise<void> {
 /** 체크박스 토글 — done_at도 같이 관리해서 나중에 완료 이력을 볼 수 있게 한다 */
 export async function toggleTodo(formData: FormData): Promise<void> {
   const { profile, activeStore } = await getSessionContext()
+  if (!canEditTodos(profile)) return
   const id = String(formData.get('id') ?? '')
   const done = String(formData.get('done') ?? '') === 'true'
   if (!id) return
@@ -56,6 +67,7 @@ export async function toggleTodo(formData: FormData): Promise<void> {
 
 export async function deleteTodo(formData: FormData): Promise<void> {
   const { profile, activeStore } = await getSessionContext()
+  if (!canEditTodos(profile)) return
   const id = String(formData.get('id') ?? '')
   if (!id) return
 

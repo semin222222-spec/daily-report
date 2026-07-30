@@ -421,3 +421,36 @@ export async function setStoreActive(
       : `${store?.name ?? '매장'}을(를) 비활성화했습니다. 기록은 그대로 남아 있습니다.`,
   }
 }
+
+/**
+ * 점장 계정의 메뉴별 권한 저장 (오너 전용).
+ * permissions = { '/closing': 'view', '/monthly': 'hidden', ... }
+ */
+export async function saveMenuPermissions(
+  profileId: string,
+  permissions: Record<string, 'hidden' | 'view' | 'edit'>
+): Promise<ActionResult> {
+  const { profile } = await getSessionContext()
+  if (profile.role !== 'owner') {
+    return { ok: false, message: '권한 설정은 오너만 가능합니다.' }
+  }
+  if (!profileId) return { ok: false, message: '대상 계정을 찾지 못했습니다.' }
+
+  // 허용된 값만 남긴다
+  const clean: Record<string, string> = {}
+  for (const [k, v] of Object.entries(permissions || {})) {
+    if (v === 'hidden' || v === 'view' || v === 'edit') clean[k] = v
+  }
+
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('profiles')
+    .update({ permissions: clean })
+    .eq('id', profileId)
+    .eq('role', 'manager') // 오너 권한은 못 건드리게
+
+  if (error) return { ok: false, message: `저장 실패: ${error.message}` }
+
+  revalidatePath('/', 'layout')
+  return { ok: true, message: '권한을 저장했습니다.' }
+}

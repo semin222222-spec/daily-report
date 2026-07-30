@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { ALL_CATEGORIES } from '@/lib/settlement'
 import { canWriteStore, getSessionContext } from '@/lib/session'
+import { canEdit } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 import type { SettlementCategory } from '@/lib/types'
 
@@ -50,6 +51,13 @@ export async function saveSettlement(
   const { profile, activeStore } = await getSessionContext()
   if (!canWriteStore(profile, activeStore.id)) {
     return { ok: false, message: '이 매장에 저장할 권한이 없습니다.' }
+  }
+  // 월정산·인건비가 같은 시트를 쓰므로 둘 중 하나라도 수정가능이면 저장 허용
+  const canSave =
+    canEdit(profile.role, profile.permissions, '/monthly') ||
+    canEdit(profile.role, profile.permissions, '/labor')
+  if (!canSave) {
+    return { ok: false, message: '월정산·인건비 수정 권한이 없습니다.' }
   }
 
   const { ym } = payload

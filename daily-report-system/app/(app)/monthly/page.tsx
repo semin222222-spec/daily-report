@@ -1,9 +1,10 @@
+import { ReadOnlyBanner } from '@/components/ui/ReadOnlyBanner'
 import Link from 'next/link'
 import { MonthPicker } from '@/components/ui/MonthPicker'
 import { closingSales } from '@/lib/pnl'
 import { num, todayKST, won } from '@/lib/format'
 import { getMonthClosings, getSettlement } from '@/lib/queries'
-import { getSessionContext } from '@/lib/session'
+import { getSessionContext, guardMenu } from '@/lib/session'
 import { ALL_CATEGORIES, shiftYm, ymLabel } from '@/lib/settlement'
 import { SettlementSheet } from './SettlementSheet'
 
@@ -14,7 +15,7 @@ export default async function MonthlyPage({
 }: {
   searchParams: { ym?: string }
 }) {
-  const { activeStore } = await getSessionContext()
+  const { activeStore, readOnly } = await guardMenu('/monthly')
 
   const today = todayKST()
   const ym =
@@ -34,6 +35,7 @@ export default async function MonthlyPage({
 
   return (
     <>
+      {readOnly && <ReadOnlyBanner />}
       {/* ── 월 이동 ────────────────────────────────── */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <Link href={`/monthly?ym=${shiftYm(ym, -1)}`} className="btn-ghost !py-2 text-[13px]">

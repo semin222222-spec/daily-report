@@ -1,5 +1,7 @@
 import { AppShell } from '@/components/shell/AppShell'
 import { logoMapByStoreId } from '@/lib/logos'
+import { VISIBLE_NAV_ITEMS } from '@/lib/nav'
+import { canSee } from '@/lib/permissions'
 import { getSessionContext } from '@/lib/session'
 
 // 세션·매장 데이터를 매 요청마다 새로 읽는다 (캐시 금지)
@@ -16,8 +18,13 @@ export default async function AppLayout({
   // 브랜드 기준이라 같은 브랜드의 여러 지점이 로고 하나를 공유한다.
   const logos = await logoMapByStoreId(session.stores)
 
+  // 이 계정 권한으로 "숨김"인 메뉴는 사이드바에서 뺀다
+  const navItems = VISIBLE_NAV_ITEMS.filter((item) =>
+    canSee(session.profile.role, session.profile.permissions, item.href)
+  )
+
   return (
-    <AppShell session={session} logos={logos}>
+    <AppShell session={session} logos={logos} navItems={navItems}>
       {children}
     </AppShell>
   )

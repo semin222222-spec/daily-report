@@ -1,3 +1,4 @@
+import { ReadOnlyBanner } from '@/components/ui/ReadOnlyBanner'
 import Link from 'next/link'
 import {
   formatDateShort,
@@ -7,7 +8,7 @@ import {
   todayKST,
   weekRange,
 } from '@/lib/format'
-import { getSessionContext } from '@/lib/session'
+import { getSessionContext, guardMenu } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import type { ScheduleDay, Shift, Staff } from '@/lib/types'
 import { addScheduleStaff, removeScheduleStaff } from './actions'
@@ -34,7 +35,7 @@ export default async function SchedulePage({
 }: {
   searchParams: { view?: string; start?: string }
 }) {
-  const { activeStore } = await getSessionContext()
+  const { activeStore, readOnly } = await guardMenu('/schedule')
   const supabase = createClient()
 
   const view: View = searchParams.view === 'month' ? 'month' : 'week'
@@ -83,6 +84,7 @@ export default async function SchedulePage({
 
   return (
     <>
+      {readOnly && <ReadOnlyBanner />}
       {/* ── 기간 전환 ─────────────────────────────── */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-xl border border-line bg-white p-1">

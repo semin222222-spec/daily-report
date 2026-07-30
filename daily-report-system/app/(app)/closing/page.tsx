@@ -1,3 +1,4 @@
+import { ReadOnlyBanner } from '@/components/ui/ReadOnlyBanner'
 import Link from 'next/link'
 import {
   closingSales,
@@ -11,7 +12,7 @@ import {
   won,
 } from '@/lib/format'
 import { getClosing, getClosingsBetween } from '@/lib/queries'
-import { getSessionContext } from '@/lib/session'
+import { getSessionContext, guardMenu } from '@/lib/session'
 import { ClosingForm } from './ClosingForm'
 
 export const dynamic = 'force-dynamic'
@@ -30,7 +31,7 @@ export default async function ClosingPage({
 }: {
   searchParams: { date?: string }
 }) {
-  const { activeStore } = await getSessionContext()
+  const { activeStore, readOnly } = await guardMenu('/closing')
   const today = todayKST()
 
   const requested = searchParams.date
@@ -55,6 +56,7 @@ export default async function ClosingPage({
 
   return (
     <>
+      {readOnly && <ReadOnlyBanner />}
       <ClosingForm
         storeId={activeStore.id}
         storeName={activeStore.name}

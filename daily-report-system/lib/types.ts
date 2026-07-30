@@ -30,6 +30,8 @@ export interface Profile {
   name: string
   role: Role
   store_id: string | null // owner는 null
+  /** 메뉴별 권한 { '/closing': 'view', ... }. 없으면 전부 edit */
+  permissions: Record<string, 'hidden' | 'view' | 'edit'>
   created_at: string
 }
 

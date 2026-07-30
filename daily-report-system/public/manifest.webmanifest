@@ -1,6 +1,6 @@
 {
-  "name": "삐딱 전용앱",
-  "short_name": "삐딱",
+  "name": "(주)삐딱 전용앱",
+  "short_name": "삐딱 전용앱",
   "description": "주식회사 삐딱 매장정산 · 점주센터",
   "start_url": "/dashboard",
   "scope": "/",
