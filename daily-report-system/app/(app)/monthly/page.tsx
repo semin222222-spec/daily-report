@@ -30,6 +30,8 @@ export default async function MonthlyPage({
   const guests = closings.reduce((s, c) => s + c.guests, 0)
 
   const { settlement, items } = await getSettlement(activeStore.id, ym)
+  // 지난달 항목 — 카테고리별 "지난달 복사"에 쓴다
+  const { items: prevItems } = await getSettlement(activeStore.id, shiftYm(ym, -1))
 
   const isCurrentMonth = ym === today.slice(0, 7)
 
@@ -72,6 +74,7 @@ export default async function MonthlyPage({
       <SettlementSheet
         ym={ym}
         items={items}
+        prevItems={prevItems}
         categories={ALL_CATEGORIES}
         autoSales={autoSales}
         savedSales={settlement?.total_sales ?? 0}

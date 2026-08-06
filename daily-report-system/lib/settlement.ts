@@ -42,6 +42,11 @@ export const SECTIONS: SectionDef[] = [
     title: '고정비용',
     namePlaceholder: '항목명 (예: 임대료)',
   },
+  {
+    category: 'etc',
+    title: '특이사항 및 기타',
+    namePlaceholder: '내용 (예: 8월 특이사항)',
+  },
 ]
 
 /** 최종 요약에 쓰는 4개 비용 묶음 */
@@ -50,6 +55,7 @@ export const COST_GROUPS = [
   { label: '식자재비용', categories: ['food'] },
   { label: '마케팅 및 기타', categories: ['marketing'] },
   { label: '고정비용', categories: ['fixed'] },
+  { label: '특이사항 및 기타', categories: ['etc'] },
 ] as const
 
 export const ALL_CATEGORIES: SettlementCategory[] = [
@@ -58,6 +64,7 @@ export const ALL_CATEGORIES: SettlementCategory[] = [
   'food',
   'marketing',
   'fixed',
+  'etc',
 ]
 
 /** 인건비 화면에서만 다루는 카테고리 */

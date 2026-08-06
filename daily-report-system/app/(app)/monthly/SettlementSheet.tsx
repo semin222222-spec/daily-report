@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 import { num, won } from '@/lib/format'
-import { COST_GROUPS, SECTIONS, sumItems } from '@/lib/settlement'
+import { ALL_CATEGORIES, COST_GROUPS, SECTIONS, sumItems } from '@/lib/settlement'
 import type { SettlementCategory, SettlementItem } from '@/lib/types'
 import { saveSettlement } from './actions'
 
@@ -31,16 +31,28 @@ function toRows(items: SettlementItem[]): Row[] {
 }
 
 const digits = (s: string) => Number(s.replace(/[^\d.]/g, '')) || 0
+const onlyDigits = (s: string) => s.replace(/[^\d]/g, '')
 
-/** 그 줄의 금액 — 알바는 시급×시간, 그 외는 금액 칸 그대로 */
+/** 입력칸에 3자리 콤마를 붙여 보여준다 (100000 → 100,000) */
+const comma = (s: string) => {
+  const d = onlyDigits(s)
+  return d ? Number(d).toLocaleString('ko-KR') : ''
+}
+
+/**
+ * 그 줄의 금액. 금액 칸을 그대로 신뢰한다.
+ * 알바는 시급·시간을 입력하면 금액 칸이 자동으로 채워지고(아래 setAlbaRate/Hours),
+ * 시급·시간 없이 금액만 직접 입력해도 된다.
+ */
 function amountOf(r: Row): number {
-  if (r.category === 'labor_part') return Math.round(digits(r.rate) * digits(r.hours))
   return Math.round(digits(r.amount))
 }
 
 export function SettlementSheet({
   ym,
   items,
+  /** 지난달 항목 — 카테고리별 "지난달 복사"에 쓴다 */
+  prevItems,
   categories,
   /** 일마감에서 계산한 이번 달 매출 합계 */
   autoSales,
@@ -51,6 +63,7 @@ export function SettlementSheet({
 }: {
   ym: string
   items: SettlementItem[]
+  prevItems: SettlementItem[]
   categories: SettlementCategory[]
   autoSales: number
   savedSales: number
@@ -79,13 +92,7 @@ export function SettlementSheet({
     amount: amountOf(r),
   }))
   const costTotal = sumItems(rowsAsItems, categories)
-  const net = totalSales - sumItems(rowsAsItems, [
-    'labor_staff',
-    'labor_part',
-    'food',
-    'marketing',
-    'fixed',
-  ])
+  const net = totalSales - sumItems(rowsAsItems, ALL_CATEGORIES)
 
   function addRow(category: SettlementCategory) {
     setRows((rs) => [
@@ -100,6 +107,36 @@ export function SettlementSheet({
 
   function patchRow(key: string, patch: Partial<Row>) {
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)))
+  }
+
+  /** 알바 시급·시간을 바꾸면 금액 칸을 자동으로 채운다 (둘 다 입력됐을 때만) */
+  function patchAlba(r: Row, patch: Partial<Row>) {
+    const next = { ...r, ...patch }
+    if (digits(next.rate) > 0 && digits(next.hours) > 0) {
+      next.amount = String(Math.round(digits(next.rate) * digits(next.hours)))
+    }
+    patchRow(r.key, next)
+  }
+
+  /** 지난달 그 카테고리 항목 수 */
+  const prevCountOf = (category: SettlementCategory) =>
+    prevItems.filter((i) => i.category === category).length
+
+  /** 지난달 그 카테고리 내용을 이번 달로 복사 (기존 줄은 덮어쓴다) */
+  function copyPrev(category: SettlementCategory) {
+    const prev = prevItems.filter((i) => i.category === category)
+    if (prev.length === 0) return
+    setRows((rs) => [
+      ...rs.filter((r) => r.category !== category),
+      ...prev.map((i) => ({
+        key: newKey(),
+        category,
+        name: i.name,
+        amount: String(i.amount || ''),
+        rate: String(i.rate || ''),
+        hours: String(i.hours || ''),
+      })),
+    ])
   }
 
   function save() {
@@ -161,8 +198,8 @@ export function SettlementSheet({
             </label>
 
             <input
-              value={salesAuto ? num(autoSales) : salesInput}
-              onChange={(e) => setSalesInput(e.target.value)}
+              value={salesAuto ? num(autoSales) : comma(salesInput)}
+              onChange={(e) => setSalesInput(onlyDigits(e.target.value))}
               disabled={salesAuto}
               inputMode="numeric"
               placeholder="원"
@@ -216,7 +253,8 @@ export function SettlementSheet({
                   <div className="space-y-2">
                     {sectionRows.map((r) =>
                       def.category === 'labor_part' ? (
-                        // 알바: 이름 + 시급 × 시간 = 금액(자동)
+                        // 알바: 이름 + 시급 × 시간 = 금액.
+                        // 시급·시간을 넣으면 금액이 자동 계산되고, 금액만 직접 입력해도 된다.
                         <div key={r.key} className="flex flex-wrap items-center gap-2">
                           <input
                             value={r.name}
@@ -227,28 +265,35 @@ export function SettlementSheet({
                             className="fld-input min-w-0 flex-1 basis-full sm:basis-0"
                           />
                           <input
-                            value={r.rate}
+                            value={comma(r.rate)}
                             onChange={(e) =>
-                              patchRow(r.key, { rate: e.target.value })
+                              patchAlba(r, { rate: onlyDigits(e.target.value) })
                             }
                             inputMode="numeric"
                             placeholder="시급"
-                            className="fld-input w-[88px] shrink-0 text-right tabular-nums sm:w-[110px]"
+                            className="fld-input w-[80px] shrink-0 text-right tabular-nums sm:w-[104px]"
                           />
                           <span className="shrink-0 text-[13px] text-muted">×</span>
                           <input
                             value={r.hours}
                             onChange={(e) =>
-                              patchRow(r.key, { hours: e.target.value })
+                              patchAlba(r, { hours: e.target.value })
                             }
                             inputMode="decimal"
                             placeholder="시간"
-                            className="fld-input w-[70px] shrink-0 text-right tabular-nums sm:w-[90px]"
+                            className="fld-input w-[64px] shrink-0 text-right tabular-nums sm:w-[80px]"
                           />
                           <span className="shrink-0 text-[13px] text-muted">=</span>
-                          <span className="w-[96px] shrink-0 text-right text-[14px] font-bold tabular-nums sm:w-[120px]">
-                            {won(amountOf(r))}
-                          </span>
+                          <input
+                            value={comma(r.amount)}
+                            onChange={(e) =>
+                              patchRow(r.key, { amount: onlyDigits(e.target.value) })
+                            }
+                            inputMode="numeric"
+                            placeholder="금액"
+                            aria-label="알바 금액"
+                            className="fld-input w-[100px] shrink-0 text-right font-bold tabular-nums sm:w-[124px]"
+                          />
                           <button
                             type="button"
                             onClick={() => removeRow(r.key)}
@@ -272,9 +317,9 @@ export function SettlementSheet({
                             className="fld-input min-w-0 flex-1"
                           />
                           <input
-                            value={r.amount}
+                            value={comma(r.amount)}
                             onChange={(e) =>
-                              patchRow(r.key, { amount: e.target.value })
+                              patchRow(r.key, { amount: onlyDigits(e.target.value) })
                             }
                             inputMode="numeric"
                             placeholder="금액"
@@ -302,14 +347,26 @@ export function SettlementSheet({
                     )}
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() => addRow(def.category)}
-                      className="btn-ghost !px-3 !py-1.5 !text-xs"
-                    >
-                      + {def.title} 추가
-                    </button>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => addRow(def.category)}
+                        className="btn-ghost !px-3 !py-1.5 !text-xs"
+                      >
+                        + {def.title} 추가
+                      </button>
+                      {prevCountOf(def.category) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => copyPrev(def.category)}
+                          title="지난달 항목을 이번 달로 불러옵니다 (기존 줄은 덮어씀)"
+                          className="btn-ghost !px-3 !py-1.5 !text-xs"
+                        >
+                          ↩ 지난달 복사 ({prevCountOf(def.category)})
+                        </button>
+                      )}
+                    </div>
                     <span className="text-[13px]">
                       <span className="text-muted">{def.title} 합계 </span>
                       <b className="tabular-nums">{won(sectionTotal)}</b>

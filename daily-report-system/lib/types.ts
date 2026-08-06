@@ -102,6 +102,7 @@ export type SettlementCategory =
   | 'food' // 식자재 비용
   | 'marketing' // 마케팅 및 기타
   | 'fixed' // 고정비용
+  | 'etc' // 특이사항 및 기타
 
 /** 월정산 시트 (매장 × 월 1건) */
 export interface MonthlySettlement {

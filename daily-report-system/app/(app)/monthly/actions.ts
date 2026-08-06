@@ -112,9 +112,11 @@ export async function saveSettlement(
     .filter((i) => categories.includes(i.category))
     .map((i, idx) => {
       const isAlba = i.category === 'labor_part'
+      // 알바는 시급·시간을 참고용으로 함께 저장하되, 금액은 클라이언트가 보낸 값을
+      // 그대로 신뢰한다. (시급×시간 자동계산도, 금액 직접입력도 이미 amount 에 반영돼 있음)
       const rate = isAlba ? clampAmount(i.rate) : 0
       const hours = isAlba ? Math.max(0, Number(i.hours) || 0) : 0
-      const amount = isAlba ? Math.round(rate * hours) : clampAmount(i.amount)
+      const amount = clampAmount(i.amount)
       return {
         settlement_id: sheet.id,
         store_id: activeStore.id,
