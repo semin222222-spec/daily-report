@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { num, won } from '@/lib/format'
 import { ALL_CATEGORIES, COST_GROUPS, SECTIONS, sumItems } from '@/lib/settlement'
 import type { SettlementCategory, SettlementItem } from '@/lib/types'
@@ -78,7 +78,9 @@ export function SettlementSheet({
   const [salesInput, setSalesInput] = useState(
     String(savedSalesAuto ? autoSales : savedSales || '')
   )
-  const [flash, setFlash] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [autoState, setAutoState] = useState<
+    'idle' | 'saving' | 'saved' | 'error'
+  >('idle')
 
   const sections = useMemo(
     () => SECTIONS.filter((s) => categories.includes(s.category)),
@@ -139,26 +141,54 @@ export function SettlementSheet({
     ])
   }
 
+  /** 지금 화면 상태를 서버에 저장한다 (성공 여부 반환) */
+  async function persist(): Promise<boolean> {
+    const res = await saveSettlement({
+      ym,
+      categories,
+      items: rows.map((r) => ({
+        category: r.category,
+        name: r.name,
+        amount: amountOf(r),
+        rate: digits(r.rate),
+        hours: digits(r.hours),
+      })),
+      ...(showSummary
+        ? { totalSales: salesAuto ? autoSales : totalSales, salesAuto }
+        : {}),
+    })
+    return res.ok
+  }
+
+  /** 수동 저장 버튼 */
   function save() {
     startTransition(async () => {
-      const res = await saveSettlement({
-        ym,
-        categories,
-        items: rows.map((r) => ({
-          category: r.category,
-          name: r.name,
-          amount: amountOf(r),
-          rate: digits(r.rate),
-          hours: digits(r.hours),
-        })),
-        ...(showSummary
-          ? { totalSales: salesAuto ? autoSales : totalSales, salesAuto }
-          : {}),
-      })
-      setFlash({ ok: res.ok, msg: res.message })
-      if (res.ok) router.refresh()
+      const ok = await persist()
+      setAutoState(ok ? 'saved' : 'error')
+      if (ok) router.refresh()
     })
   }
+
+  // ── 자동 저장 ──────────────────────────────────────────────
+  // 입력이 1초간 멈추면 알아서 저장한다. 저장 버튼을 안 눌러도 된다.
+  // 첫 렌더(초기 로드·매장 전환 직후)에는 저장하지 않는다.
+  const firstRun = useRef(true)
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false
+      return
+    }
+    setAutoState('saving')
+    const t = setTimeout(() => {
+      startTransition(async () => {
+        const ok = await persist()
+        setAutoState(ok ? 'saved' : 'error')
+      })
+    }, 1000)
+    return () => clearTimeout(t)
+    // rows·매출 입력이 바뀔 때마다 타이머를 재설정(디바운스)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, salesInput, salesAuto])
 
   // 인건비처럼 두 섹션이 한 묶음인 경우를 위해 group으로 나눈다
   const groups = useMemo(() => {
@@ -421,16 +451,21 @@ export function SettlementSheet({
 
       {/* ── 저장 ──────────────────────────────────── */}
       <div className="sticky bottom-4 z-10 mt-4 flex items-center justify-end gap-3">
-        {flash && (
-          <span
-            className={`rounded-[10px] bg-surface px-3 py-2 text-[13px] font-semibold shadow-card ${
-              flash.ok ? 'text-good' : 'text-bad'
-            }`}
-            role="status"
-          >
-            {flash.msg}
-          </span>
-        )}
+        {/* 자동 저장 상태 — 저장 버튼을 안 눌러도 입력이 멈추면 저장된다 */}
+        <span
+          className={`rounded-[10px] bg-surface px-3 py-2 text-[13px] font-semibold shadow-card ${
+            autoState === 'error' ? 'text-bad' : 'text-muted'
+          }`}
+          role="status"
+        >
+          {autoState === 'saving'
+            ? '자동 저장 중…'
+            : autoState === 'saved'
+              ? '✓ 자동 저장됨'
+              : autoState === 'error'
+                ? '저장 실패 — 다시 시도하세요'
+                : '입력하면 자동 저장됩니다'}
+        </span>
         {!showSummary && (
           <span className="rounded-[10px] bg-surface px-3 py-2 text-[13px] shadow-card">
             <span className="text-muted">인건비 합계 </span>
@@ -443,7 +478,7 @@ export function SettlementSheet({
           disabled={pending}
           className="btn shadow-card"
         >
-          {pending ? '저장 중…' : '저장'}
+          {pending ? '저장 중…' : '지금 저장'}
         </button>
       </div>
     </>

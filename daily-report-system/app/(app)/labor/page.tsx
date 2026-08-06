@@ -66,6 +66,7 @@ export default async function LaborPage({
       </div>
 
       <SettlementSheet
+        key={`${activeStore.id}-${ym}`}
         ym={ym}
         items={items}
         prevItems={prevItems}

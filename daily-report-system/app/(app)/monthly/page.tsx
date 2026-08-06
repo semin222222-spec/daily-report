@@ -72,6 +72,7 @@ export default async function MonthlyPage({
       </div>
 
       <SettlementSheet
+        key={`${activeStore.id}-${ym}`}
         ym={ym}
         items={items}
         prevItems={prevItems}
