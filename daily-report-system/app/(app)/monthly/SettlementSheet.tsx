@@ -1,6 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { num, won } from '@/lib/format'
 import { ALL_CATEGORIES, COST_GROUPS, SECTIONS, sumItems } from '@/lib/settlement'
@@ -70,8 +69,7 @@ export function SettlementSheet({
   savedSalesAuto: boolean
   showSummary: boolean
 }) {
-  const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
   const [rows, setRows] = useState<Row[]>(() => toRows(items))
   const [salesAuto, setSalesAuto] = useState(savedSalesAuto)
@@ -160,17 +158,14 @@ export function SettlementSheet({
     return res.ok
   }
 
-  /** 수동 저장 버튼 */
-  function save() {
-    startTransition(async () => {
-      const ok = await persist()
-      setAutoState(ok ? 'saved' : 'error')
-      if (ok) router.refresh()
-    })
-  }
+  // 항상 최신 persist 를 가리키는 ref — 언마운트 시점에 최신 내용을 저장하려고
+  const persistRef = useRef(persist)
+  persistRef.current = persist
+  // 저장 안 된 변경이 남아 있는지
+  const dirtyRef = useRef(false)
 
   // ── 자동 저장 ──────────────────────────────────────────────
-  // 입력이 1초간 멈추면 알아서 저장한다. 저장 버튼을 안 눌러도 된다.
+  // 입력이 1초간 멈추면 알아서 저장한다. 저장 버튼이 따로 없다.
   // 첫 렌더(초기 로드·매장 전환 직후)에는 저장하지 않는다.
   const firstRun = useRef(true)
   useEffect(() => {
@@ -178,10 +173,12 @@ export function SettlementSheet({
       firstRun.current = false
       return
     }
+    dirtyRef.current = true
     setAutoState('saving')
     const t = setTimeout(() => {
       startTransition(async () => {
         const ok = await persist()
+        dirtyRef.current = !ok
         setAutoState(ok ? 'saved' : 'error')
       })
     }, 1000)
@@ -189,6 +186,16 @@ export function SettlementSheet({
     // rows·매출 입력이 바뀔 때마다 타이머를 재설정(디바운스)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, salesInput, salesAuto])
+
+  // 저장 대기(1초) 중에 매장을 바꾸거나 화면을 떠나면, 마지막 변경을 즉시 저장한다.
+  // (Next 화면 전환은 브라우저를 새로 띄우지 않으므로 이 요청은 정상적으로 완료된다)
+  useEffect(() => {
+    return () => {
+      if (dirtyRef.current) persistRef.current()
+    }
+    // 언마운트 때 한 번만
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 인건비처럼 두 섹션이 한 묶음인 경우를 위해 group으로 나눈다
   const groups = useMemo(() => {
@@ -472,14 +479,6 @@ export function SettlementSheet({
             <b className="tabular-nums">{won(costTotal)}</b>
           </span>
         )}
-        <button
-          type="button"
-          onClick={save}
-          disabled={pending}
-          className="btn shadow-card"
-        >
-          {pending ? '저장 중…' : '지금 저장'}
-        </button>
       </div>
     </>
   )
