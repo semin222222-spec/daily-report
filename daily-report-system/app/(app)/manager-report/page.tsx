@@ -48,8 +48,10 @@ export default async function ManagerReportPage({
   // 기간 실적 — 점장이 숫자를 다시 계산·타이핑하지 않게 미리 뽑아준다.
   // 그 달 월정산 시트에 실제 인건비·고정비가 적혀 있으면 그 값을 쓴다.
   const ym = span.start.slice(0, 7)
-  const inputs = await getPnlInputs(activeStore.id, ym)
-  const closings = await getClosingsBetween(activeStore.id, span.start, span.end)
+  const [inputs, closings] = await Promise.all([
+    getPnlInputs(activeStore.id, ym),
+    getClosingsBetween(activeStore.id, span.start, span.end),
+  ])
   const p = calcPeriod(closings, inputs)
   const costRate = p.sales ? (p.cost / p.sales) * 100 : 0
   const profitRate = p.sales ? (p.profit / p.sales) * 100 : 0
@@ -70,23 +72,24 @@ export default async function ManagerReportPage({
         `객단가 ${won(p.guests ? p.sales / p.guests : 0)} · 원가율 ${pct(costRate)}\n\n`
       : ''
 
-  const { data: existingRow } = await supabase
-    .from('manager_reports')
-    .select('*')
-    .eq('store_id', activeStore.id)
-    .eq('period_type', periodType)
-    .eq('period_start', span.start)
-    .maybeSingle()
+  // 이 기간 보고서 + 지난 보고서 목록을 동시에 가져온다
+  const [{ data: existingRow }, { data: recentRows }] = await Promise.all([
+    supabase
+      .from('manager_reports')
+      .select('*')
+      .eq('store_id', activeStore.id)
+      .eq('period_type', periodType)
+      .eq('period_start', span.start)
+      .maybeSingle(),
+    supabase
+      .from('manager_reports')
+      .select('*')
+      .eq('store_id', activeStore.id)
+      .order('period_start', { ascending: false })
+      .limit(12),
+  ])
 
   const existing = (existingRow ?? null) as ManagerReport | null
-
-  const { data: recentRows } = await supabase
-    .from('manager_reports')
-    .select('*')
-    .eq('store_id', activeStore.id)
-    .order('period_start', { ascending: false })
-    .limit(12)
-
   const recent = (recentRows ?? []) as ManagerReport[]
 
   const step = (dir: number) => {
@@ -171,6 +174,7 @@ export default async function ManagerReportPage({
       </div>
 
       <ReportForm
+        key={`${activeStore.id}-${periodType}-${span.start}`}
         periodType={periodType}
         periodStart={span.start}
         periodEnd={span.end}

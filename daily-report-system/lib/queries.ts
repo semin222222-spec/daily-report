@@ -167,7 +167,7 @@ export async function getReviews(storeId: string, limit = 50): Promise<Review[]>
  * 시트가 없으면(그 달을 아직 안 만들었으면) null과 빈 배열을 준다.
  * 화면에서 빈 시트로 시작해 저장할 때 만들어진다.
  */
-export async function getSettlement(
+export const getSettlement = cache(async function getSettlement(
   storeId: string,
   ym: string
 ): Promise<{ settlement: MonthlySettlement | null; items: SettlementItem[] }> {
@@ -193,7 +193,7 @@ export async function getSettlement(
     settlement: settlement as MonthlySettlement,
     items: (items ?? []) as SettlementItem[],
   }
-}
+})
 
 export async function getStaff(storeId: string): Promise<Staff[]> {
   const supabase = createClient()

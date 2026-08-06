@@ -120,6 +120,7 @@ export default async function SchedulePage({
       </div>
 
       <ScheduleBoard
+        key={`${activeStore.id}-${view}-${anchor}`}
         staff={staff}
         shifts={shifts}
         days={days}

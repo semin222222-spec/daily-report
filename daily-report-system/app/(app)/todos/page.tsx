@@ -14,7 +14,12 @@ export default async function TodosPage() {
     <>
       {readOnly && <ReadOnlyBanner />}
       <div className="card">
-      <TodoList todos={todos} storeName={activeStore.name} readOnly={readOnly} />
+      <TodoList
+        key={activeStore.id}
+        todos={todos}
+        storeName={activeStore.name}
+        readOnly={readOnly}
+      />
 
       {!readOnly && (
         <form action={addTodo} className="mt-3.5 flex flex-wrap gap-2">

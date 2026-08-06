@@ -24,14 +24,16 @@ export default async function MonthlyPage({
       : today.slice(0, 7)
   const [year, month] = ym.split('-').map(Number)
 
+  // 일마감·이번달 시트·지난달 시트를 동시에 가져온다 (서로 독립적)
+  const [closings, { settlement, items }, { items: prevItems }] =
+    await Promise.all([
+      getMonthClosings(activeStore.id, year, month),
+      getSettlement(activeStore.id, ym),
+      getSettlement(activeStore.id, shiftYm(ym, -1)),
+    ])
   // 총매출 기본값 — 일마감 합계
-  const closings = await getMonthClosings(activeStore.id, year, month)
   const autoSales = closings.reduce((s, c) => s + closingSales(c), 0)
   const guests = closings.reduce((s, c) => s + c.guests, 0)
-
-  const { settlement, items } = await getSettlement(activeStore.id, ym)
-  // 지난달 항목 — 카테고리별 "지난달 복사"에 쓴다
-  const { items: prevItems } = await getSettlement(activeStore.id, shiftYm(ym, -1))
 
   const isCurrentMonth = ym === today.slice(0, 7)
 

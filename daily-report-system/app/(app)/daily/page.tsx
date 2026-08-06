@@ -23,11 +23,15 @@ export default async function DailyReportPage({
   const today = todayKST()
 
   const requested = searchParams.date
-  const inputs = await getPnlInputs(activeStore.id, (requested ?? today).slice(0, 7))
 
   // 날짜를 지정하지 않으면 오늘 → 없으면 최근 마감일
   let date = requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : today
-  let closing = await getClosing(activeStore.id, date)
+  // 손익 부속값과 그날 마감을 동시에 가져온다 (서로 독립적)
+  const [inputs, firstClosing] = await Promise.all([
+    getPnlInputs(activeStore.id, (requested ?? today).slice(0, 7)),
+    getClosing(activeStore.id, date),
+  ])
+  let closing = firstClosing
   if (!closing && !requested) {
     const latest = await getLatestClosing(activeStore.id)
     if (latest) {

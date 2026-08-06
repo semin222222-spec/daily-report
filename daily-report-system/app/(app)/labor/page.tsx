@@ -24,11 +24,12 @@ export default async function LaborPage({
       : today.slice(0, 7)
 
   // 월정산과 같은 시트를 본다. 여기서 고치면 월정산에도 그대로 반영된다.
-  const { items } = await getSettlement(activeStore.id, ym)
-  // 지난달 항목 — 카테고리별 "지난달 복사"에 쓴다
-  const { items: prevItems } = await getSettlement(activeStore.id, shiftYm(ym, -1))
-  // 보건증은 달과 무관한 사람 정보라 근무 인원 명단에서 가져온다
-  const staff = await getStaff(activeStore.id)
+  // 이번 달·지난달 시트와 인원 명단을 동시에 가져온다.
+  const [{ items }, { items: prevItems }, staff] = await Promise.all([
+    getSettlement(activeStore.id, ym),
+    getSettlement(activeStore.id, shiftYm(ym, -1)),
+    getStaff(activeStore.id),
+  ])
   const isCurrentMonth = ym === today.slice(0, 7)
 
   return (
@@ -77,7 +78,7 @@ export default async function LaborPage({
         showSummary={false}
       />
 
-      <HealthCerts staff={staff.filter((s) => s.is_active)} />
+      <HealthCerts key={activeStore.id} staff={staff.filter((s) => s.is_active)} />
     </>
   )
 }

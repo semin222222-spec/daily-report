@@ -38,26 +38,24 @@ export default async function ClosingPage({
   const date =
     requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : today
 
-  const existing = await getClosing(activeStore.id, date)
-
-  // 이번 주(월~일) 마감 현황
+  // 이번 주(월~일) 범위를 먼저 계산하고, 그날 마감과 주간 현황을 동시에 가져온다
   const start = weekStart(date)
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start)
     d.setDate(d.getDate() + i)
     return toISODate(d)
   })
-  const weekRows = await getClosingsBetween(
-    activeStore.id,
-    days[0],
-    days[6]
-  )
+  const [existing, weekRows] = await Promise.all([
+    getClosing(activeStore.id, date),
+    getClosingsBetween(activeStore.id, days[0], days[6]),
+  ])
   const byDate = new Map(weekRows.map((r) => [r.date, r]))
 
   return (
     <>
       {readOnly && <ReadOnlyBanner />}
       <ClosingForm
+        key={`${activeStore.id}-${date}`}
         storeId={activeStore.id}
         storeName={activeStore.name}
         date={date}
