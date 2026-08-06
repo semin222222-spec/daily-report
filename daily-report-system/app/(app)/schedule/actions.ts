@@ -48,7 +48,11 @@ export async function setShift(
       .delete()
       .eq('staff_id', staffId)
       .eq('date', date)
-    return error ? { ok: false, message: error.message } : { ok: true }
+    if (error) return { ok: false, message: error.message }
+    // 저장 후 라우터 캐시를 갱신한다. 이게 없으면 다른 메뉴 갔다 돌아왔을 때
+    // 편집 전 캐시가 떠서 "리셋된 것처럼" 보인다. (화면은 이미 낙관적으로 갱신됨)
+    revalidatePath('/schedule')
+    return { ok: true }
   }
 
   const { error } = await supabase.from('shifts').upsert(
@@ -61,7 +65,9 @@ export async function setShift(
     { onConflict: 'staff_id,date' }
   )
 
-  return error ? { ok: false, message: error.message } : { ok: true }
+  if (error) return { ok: false, message: error.message }
+  revalidatePath('/schedule')
+  return { ok: true }
 }
 
 /**
@@ -106,6 +112,7 @@ export async function assignGroupToDate(
   )
 
   if (error) return { ok: false, message: error.message }
+  revalidatePath('/schedule')
   return { ok: true, staffIds: ids }
 }
 
@@ -150,7 +157,9 @@ export async function setScheduleDay(
     { onConflict: 'store_id,date' }
   )
 
-  return error ? { ok: false, message: error.message } : { ok: true }
+  if (error) return { ok: false, message: error.message }
+  revalidatePath('/schedule')
+  return { ok: true }
 }
 
 /** 스케줄 화면에서 바로 직원 추가 — 인건비 화면까지 안 가도 되게 */
