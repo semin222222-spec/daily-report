@@ -21,6 +21,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/monthly', icon: '📅', label: '월정산' },
   { href: '/labor', icon: '👥', label: '인건비' },
   { href: '/schedule', icon: '🗓️', label: '근무 스케줄' },
+  { href: '/reservations', icon: '📞', label: '예약현황' },
   { href: '/todos', icon: '✅', label: '오늘 할일' },
   // 임원전용 — 기본은 모든 점장에게 숨김. 오너가 설정에서 계정마다 열어준다.
   { href: '/executive', icon: '👔', label: '임원전용' },

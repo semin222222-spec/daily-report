@@ -1,8 +1,9 @@
 import { ReadOnlyBanner } from '@/components/ui/ReadOnlyBanner'
+import { todayKST } from '@/lib/format'
 import { guardMenu } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import type { OcFile } from '@/lib/owner-center'
-import type { MeetingNote } from '@/lib/types'
+import type { MeetingNote, OpenChecklist, OpenTask } from '@/lib/types'
 import { ExecutiveTabs } from './ExecutiveTabs'
 
 export const dynamic = 'force-dynamic'
@@ -16,7 +17,7 @@ export default async function ExecutivePage() {
   const isOwner = profile.role === 'owner'
   const supabase = createClient()
 
-  const [fileRes, noteRes] = await Promise.all([
+  const [fileRes, noteRes, listRes, taskRes] = await Promise.all([
     supabase
       .from('oc_files')
       .select('*')
@@ -27,9 +28,20 @@ export default async function ExecutivePage() {
       .select('*')
       .order('meeting_date', { ascending: false })
       .order('created_at', { ascending: false }),
+    supabase
+      .from('open_checklists')
+      .select('*')
+      .order('created_at', { ascending: false }),
+    // 오픈 건이 많아야 몇 건이라 항목을 한 번에 받아 화면에서 골라 쓴다
+    supabase
+      .from('open_checklist_tasks')
+      .select('*')
+      .order('sort_order', { ascending: true }),
   ])
   const files = (fileRes.data ?? []) as OcFile[]
   const notes = (noteRes.data ?? []) as MeetingNote[]
+  const openLists = (listRes.data ?? []) as OpenChecklist[]
+  const openTasks = (taskRes.data ?? []) as OpenTask[]
 
   // 원본 다운로드 URL + 썸네일 URL (이미지 원본 또는 AI·PDF 미리보기)
   const urls: Record<string, string> = {}
@@ -83,6 +95,9 @@ export default async function ExecutivePage() {
         urls={urls}
         thumbs={thumbs}
         notes={notes}
+        openLists={openLists}
+        openTasks={openTasks}
+        today={todayKST()}
         isOwner={isOwner}
       />
     </>

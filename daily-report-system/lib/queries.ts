@@ -5,6 +5,7 @@ import type {
   DailyClosing,
   FixedCosts,
   MonthlySettlement,
+  Reservation,
   Review,
   SettlementCategory,
   SettlementItem,
@@ -149,6 +150,30 @@ export async function getTodos(storeId: string): Promise<Todo[]> {
     .order('done', { ascending: true })
     .order('created_at', { ascending: false })
   return (data ?? []) as Todo[]
+}
+
+/** 기간 내 예약 (시간 오름차순 — 시간 미정은 맨 뒤로 보낸다) */
+export async function getReservationsBetween(
+  storeId: string,
+  from: string,
+  to: string
+): Promise<Reservation[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('reservations')
+    .select('*')
+    .eq('store_id', storeId)
+    .gte('date', from)
+    .lte('date', to)
+    .order('date', { ascending: true })
+    .order('time', { ascending: true })
+    .order('created_at', { ascending: true })
+  const rows = (data ?? []) as Reservation[]
+  // 'HH:MM' 텍스트 정렬이라 빈 문자열(시간 미정)이 앞에 온다. 뒤로 돌린다.
+  return [
+    ...rows.filter((r) => r.time),
+    ...rows.filter((r) => !r.time),
+  ]
 }
 
 export async function getReviews(storeId: string, limit = 50): Promise<Review[]> {

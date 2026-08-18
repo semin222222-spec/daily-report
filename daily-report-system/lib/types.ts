@@ -196,6 +196,60 @@ export interface Review {
   created_at: string
 }
 
+/** 예약 상태 — 예약 / 방문완료 / 노쇼 / 취소 */
+export type ReservationStatus = 'booked' | 'visited' | 'noshow' | 'canceled'
+
+/** 매장 예약 한 건 */
+export interface Reservation {
+  id: string
+  store_id: string
+  date: string // 'YYYY-MM-DD'
+  time: string // 'HH:MM' — 빈 문자열이면 시간 미정
+  name: string
+  phone: string
+  party_size: number
+  channel: string // 전화 / 네이버 / 캐치테이블 …
+  status: ReservationStatus
+  deposit: number
+  memo: string
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** 오픈 건 진행 상태 */
+export type OpenChecklistStatus = 'preparing' | 'opened' | 'onhold'
+
+/** 임원전용 · 매장 오픈 체크리스트 (매장 하나의 오픈 프로젝트) */
+export interface OpenChecklist {
+  id: string
+  title: string
+  open_date: string | null
+  status: OpenChecklistStatus
+  memo: string
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** 오픈 체크리스트 한 줄 */
+export interface OpenTask {
+  id: string
+  checklist_id: string
+  section: string
+  title: string
+  owner: string
+  due_date: string
+  cost: number
+  vendor: string
+  memo: string
+  done: boolean
+  done_at: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 /** 임원전용 회의록 */
 export interface MeetingNote {
   id: string

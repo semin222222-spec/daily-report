@@ -32,6 +32,7 @@ export const PERM_MENUS: PermMenu[] = [
   { key: '/monthly', label: '월정산', desc: '월 손익·급여 정산', defaultLevel: 'edit' },
   { key: '/labor', label: '인건비', desc: '직원·알바 급여 · 보건증', defaultLevel: 'edit' },
   { key: '/schedule', label: '근무 스케줄', desc: '주간·월간 근무표', defaultLevel: 'edit' },
+  { key: '/reservations', label: '예약현황', desc: '날짜별 예약 접수·방문 관리', defaultLevel: 'edit' },
   { key: '/todos', label: '오늘 할일', desc: '매장 to-do', defaultLevel: 'edit' },
   { key: '/owner-center', label: '점주센터', desc: '오픈발주·자료실', defaultLevel: 'edit' },
   // 임원전용: 기본은 모두 숨김. 오너가 계정마다 직접 열어준다.
