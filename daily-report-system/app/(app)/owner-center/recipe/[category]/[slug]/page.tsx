@@ -18,10 +18,10 @@ export default function RecipeDetailPage({
     <>
       <div className="mb-4">
         <Link
-          href={`/owner-center/recipe/${category.slug}`}
+          href="/owner-center/recipe"
           className="text-[13px] font-semibold text-muted hover:text-ink"
         >
-          ← {category.name}
+          ← 레시피
         </Link>
         <h2 className="mt-1 text-[19px] font-extrabold">{recipe.name}</h2>
       </div>
