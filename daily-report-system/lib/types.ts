@@ -217,6 +217,40 @@ export interface Reservation {
   updated_at: string
 }
 
+/** 거래처 매입 현황 · 거래처 한 곳 */
+export interface PurchaseVendor {
+  id: string
+  store_id: string
+  name: string
+  sort_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+/** 거래처 매입 한 칸 = 거래처 1곳의 하루 (VAT 포함) */
+export interface PurchaseEntry {
+  id: string
+  store_id: string
+  vendor_id: string
+  date: string // 'YYYY-MM-DD'
+  amount: number
+  memo: string
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** 매입 요약표의 주별 "비고" */
+export interface PurchaseWeekNote {
+  id: string
+  store_id: string
+  ym: string // 'YYYY-MM'
+  week_no: number
+  note: string
+  updated_at: string
+}
+
 /** 오픈 건 진행 상태 */
 export type OpenChecklistStatus = 'preparing' | 'opened' | 'onhold'
 

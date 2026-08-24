@@ -5,6 +5,9 @@ import type {
   DailyClosing,
   FixedCosts,
   MonthlySettlement,
+  PurchaseEntry,
+  PurchaseVendor,
+  PurchaseWeekNote,
   Reservation,
   Review,
   SettlementCategory,
@@ -219,6 +222,57 @@ export const getSettlement = cache(async function getSettlement(
     items: (items ?? []) as SettlementItem[],
   }
 })
+
+/**
+ * 매입 거래처 목록 (엑셀 열 순서).
+ * 거래를 끊은 곳(is_active=false)도 과거 기록을 보려면 필요하므로 전부 준다.
+ * 입력 격자에 그릴지 말지는 화면이 is_active 로 판단한다.
+ */
+export async function getPurchaseVendors(
+  storeId: string
+): Promise<PurchaseVendor[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('purchase_vendors')
+    .select('*')
+    .eq('store_id', storeId)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+  return (data ?? []) as PurchaseVendor[]
+}
+
+/**
+ * 그 달의 매입 칸 + 주별 비고.
+ * 요약표·거래처 블록·비율표가 모두 이 한 번의 조회로 그려진다.
+ */
+export async function getPurchaseMonth(
+  storeId: string,
+  ym: string
+): Promise<{ entries: PurchaseEntry[]; notes: PurchaseWeekNote[] }> {
+  const [y, m] = ym.split('-').map(Number)
+  const from = toISODate(new Date(y, m - 1, 1))
+  const to = toISODate(new Date(y, m, 0))
+
+  const supabase = createClient()
+  const [entryRes, noteRes] = await Promise.all([
+    supabase
+      .from('purchase_entries')
+      .select('*')
+      .eq('store_id', storeId)
+      .gte('date', from)
+      .lte('date', to),
+    supabase
+      .from('purchase_week_notes')
+      .select('*')
+      .eq('store_id', storeId)
+      .eq('ym', ym),
+  ])
+
+  return {
+    entries: (entryRes.data ?? []) as PurchaseEntry[],
+    notes: (noteRes.data ?? []) as PurchaseWeekNote[],
+  }
+}
 
 export async function getStaff(storeId: string): Promise<Staff[]> {
   const supabase = createClient()

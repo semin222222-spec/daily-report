@@ -9,7 +9,7 @@
 /** 점주센터 PIN 통과 여부를 담는 쿠키 이름 */
 export const OC_COOKIE = 'oc_ok'
 
-export type FolderKind = 'order' | 'files'
+export type FolderKind = 'order' | 'files' | 'recipe'
 
 export interface OwnerFolder {
   slug: string
@@ -66,7 +66,7 @@ export const OWNER_FOLDERS: OwnerFolder[] = [
     title: '레시피',
     desc: '메뉴별 조리 표준 레시피',
     icon: '🍳',
-    kind: 'files',
+    kind: 'recipe',
   },
   {
     slug: 'design',

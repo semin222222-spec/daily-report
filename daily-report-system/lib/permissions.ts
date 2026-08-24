@@ -35,6 +35,12 @@ export const PERM_MENUS: PermMenu[] = [
   { key: '/reservations', label: '예약현황', desc: '날짜별 예약 접수·방문 관리', defaultLevel: 'edit' },
   { key: '/todos', label: '오늘 할일', desc: '매장 to-do', defaultLevel: 'edit' },
   { key: '/owner-center', label: '점주센터', desc: '오픈발주·자료실', defaultLevel: 'edit' },
+  {
+    key: '/purchases',
+    label: '거래처 매입 현황',
+    desc: '거래처별 일자 매입 · 매출 대비 매입비율',
+    defaultLevel: 'edit',
+  },
   // 임원전용: 기본은 모두 숨김. 오너가 계정마다 직접 열어준다.
   { key: '/executive', label: '임원전용', desc: '임원 전용 자료 (기본 숨김)', defaultLevel: 'hidden' },
 ]
