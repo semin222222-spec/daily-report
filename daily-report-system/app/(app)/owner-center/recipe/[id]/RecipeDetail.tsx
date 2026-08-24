@@ -106,7 +106,11 @@ export function RecipeDetail({
       {photoUrl && (
         <div className="card mb-4 !p-0 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photoUrl} alt={recipe.name} className="w-full object-cover" />
+          <img
+            src={photoUrl}
+            alt={recipe.name}
+            className="h-40 w-full object-cover sm:h-52"
+          />
         </div>
       )}
 
