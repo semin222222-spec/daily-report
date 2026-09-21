@@ -175,3 +175,27 @@
   display: inline-block;
   transform: skewX(-11deg) rotate(-4deg);
 }
+
+/* 레시피 인쇄/PDF 저장 — 사이드바·헤더 등 앱 셸을 전부 숨기고
+   #recipe-print-area 하나만 종이에 꽉 채워 찍는다. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #recipe-print-area,
+  #recipe-print-area * {
+    visibility: visible;
+  }
+  #recipe-print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+  .card {
+    box-shadow: none;
+    border-color: #ddd;
+  }
+}
