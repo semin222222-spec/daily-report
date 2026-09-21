@@ -23,31 +23,31 @@ export function RecipePrintSheet({
           {categoryName}
         </p>
       )}
-      <h2 className="mb-4 hidden text-[19px] font-extrabold print:mb-2 print:block print:text-[16px]">
+      <h2 className="mb-4 hidden text-[19px] font-extrabold print:mb-2.5 print:block print:text-[18px]">
         {recipe.name}
       </h2>
 
       {photoUrl && (
-        <div className="card mb-4 !p-0 overflow-hidden bg-[#fbfaf8] print:mb-2 print:break-inside-avoid">
+        <div className="card mb-4 !p-0 overflow-hidden bg-[#fbfaf8] print:mb-3 print:break-inside-avoid">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={photoUrl}
             alt={recipe.name}
-            className="mx-auto max-h-64 w-auto max-w-full object-contain sm:max-h-80 print:max-h-[170px]"
+            className="mx-auto max-h-64 w-auto max-w-full object-contain sm:max-h-80 print:max-h-[230px]"
           />
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 shell:grid-cols-2 print:grid-cols-2 print:gap-2">
+      <div className="grid grid-cols-1 gap-4 shell:grid-cols-2 print:grid-cols-2 print:gap-3">
         {/* 재료 */}
-        <div className="card print:break-inside-avoid print:p-3">
-          <h3 className="card-title print:text-[13px]">재료</h3>
-          <p className="card-sub print:mb-1 print:text-[11px]">1인분 기준</p>
+        <div className="card print:break-inside-avoid print:p-4">
+          <h3 className="card-title print:text-[14.5px]">재료</h3>
+          <p className="card-sub print:mb-1.5 print:text-[12px]">1인분 기준</p>
           <ul className="divide-y divide-line-soft">
             {recipe.ingredients.map((i, idx) => (
               <li
                 key={idx}
-                className="flex items-center justify-between py-2 text-[13.5px] print:py-1 print:text-[12px]"
+                className="flex items-center justify-between py-2 text-[13.5px] print:py-1.5 print:text-[13px]"
               >
                 <span className="text-ink-2">{i.name}</span>
                 {i.amount && <span className="font-semibold tabular-nums">{i.amount}</span>}
@@ -56,7 +56,7 @@ export function RecipePrintSheet({
           </ul>
 
           {(recipe.garnish || recipe.sauce) && (
-            <div className="mt-3 space-y-1 border-t border-line-soft pt-3 text-[13px] print:mt-1 print:pt-1 print:text-[11px]">
+            <div className="mt-3 space-y-1 border-t border-line-soft pt-3 text-[13px] print:mt-1.5 print:pt-1.5 print:text-[12px]">
               {recipe.garnish && (
                 <p>
                   <span className="font-semibold text-ink-2">가니쉬 · </span>
@@ -74,16 +74,16 @@ export function RecipePrintSheet({
         </div>
 
         {/* 제조 및 제공 방법 */}
-        <div className="card print:break-inside-avoid print:p-3">
-          <h3 className="card-title print:text-[13px]">제조 및 제공 방법</h3>
-          <p className="card-sub print:mb-1 print:text-[11px]">순서대로 진행한다</p>
-          <ol className="space-y-2.5 print:space-y-1">
+        <div className="card print:break-inside-avoid print:p-4">
+          <h3 className="card-title print:text-[14.5px]">제조 및 제공 방법</h3>
+          <p className="card-sub print:mb-1.5 print:text-[12px]">순서대로 진행한다</p>
+          <ol className="space-y-2.5 print:space-y-1.5">
             {recipe.steps.map((s, idx) => (
               <li
                 key={idx}
-                className="flex gap-2.5 text-[13.5px] leading-relaxed print:gap-1.5 print:text-[12px] print:leading-snug"
+                className="flex gap-2.5 text-[13.5px] leading-relaxed print:gap-2 print:text-[13px] print:leading-snug"
               >
-                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand/[.1] text-[11px] font-bold text-brand-deep print:h-4 print:w-4 print:text-[9px]">
+                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand/[.1] text-[11px] font-bold text-brand-deep print:h-[18px] print:w-[18px] print:text-[10px]">
                   {idx + 1}
                 </span>
                 <span className="text-ink-2">{s}</span>
@@ -94,13 +94,13 @@ export function RecipePrintSheet({
 
         {/* 특이사항 */}
         {recipe.notes.length > 0 && (
-          <div className="card border-warn/40 bg-warn/[.05] print:break-inside-avoid print:p-3">
-            <h3 className="card-title print:text-[13px]">특이사항</h3>
-            <ul className="space-y-1.5 print:space-y-1">
+          <div className="card border-warn/40 bg-warn/[.05] print:break-inside-avoid print:p-4">
+            <h3 className="card-title print:text-[14.5px]">특이사항</h3>
+            <ul className="space-y-1.5">
               {recipe.notes.map((n, idx) => (
                 <li
                   key={idx}
-                  className="flex gap-2 text-[13px] leading-relaxed text-ink-2 print:text-[11px] print:leading-snug"
+                  className="flex gap-2 text-[13px] leading-relaxed text-ink-2 print:text-[12.5px] print:leading-snug"
                 >
                   <span className="text-[#8a5a00]">⚠</span>
                   <span>{n}</span>
@@ -112,11 +112,11 @@ export function RecipePrintSheet({
 
         {/* 원재료 전처리 */}
         {recipe.prep.length > 0 && (
-          <div className="card print:break-inside-avoid print:p-3">
-            <h3 className="card-title print:text-[13px]">원재료 전처리</h3>
-            <ul className="space-y-2 print:space-y-1">
+          <div className="card print:break-inside-avoid print:p-4">
+            <h3 className="card-title print:text-[14.5px]">원재료 전처리</h3>
+            <ul className="space-y-2">
               {recipe.prep.map((p, idx) => (
-                <li key={idx} className="text-[13px] leading-relaxed print:text-[11px]">
+                <li key={idx} className="text-[13px] leading-relaxed print:text-[12.5px]">
                   <span className="font-semibold text-ink-2">{p.name}</span>
                   <span className="text-muted"> · {p.detail}</span>
                 </li>
