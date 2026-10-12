@@ -168,7 +168,8 @@ function OrderForm({
 /** 품목 한 줄의 입력칸들 (추가·수정 공용) */
 function ItemFields({ item, section }: { item?: EquipItem; section: string }) {
   return (
-    <div className="grid grid-cols-2 gap-2 shell:grid-cols-[110px_1.6fr_1.2fr_80px_110px_1fr]">
+    // 큰 화면에선 섹션 카드가 반쪽 폭이라 3칸 × 2줄로 접는다
+    <div className="grid grid-cols-2 gap-2 shell:grid-cols-[110px_1.6fr_1.2fr_80px_110px_1fr] xl:grid-cols-3">
       <select name="section" defaultValue={item?.section ?? section} aria-label="구분" className="fld-input !py-2 !text-[13px]">
         {Array.from(new Set([...EQUIP_SECTIONS, section, item?.section ?? ''])).filter(Boolean).map((s) => (
           <option key={s} value={s}>{s}</option>
@@ -280,6 +281,7 @@ export function EquipOrders({
   const [selected, setSelected] = useState<string | null>(orders[0]?.id ?? null)
   const [mode, setMode] = useState<'view' | 'create' | 'edit' | 'import'>('view')
   const [editingItem, setEditingItem] = useState<string | null>(null)
+  const [addingSection, setAddingSection] = useState<string | null>(null)
   const [removed, setRemoved] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
   const [, startTransition] = useTransition()
@@ -493,29 +495,30 @@ export function EquipOrders({
         />
       )}
 
-      {/* ── 섹션별 품목 표 ─────────────────────────── */}
+      {/* ── 섹션별 품목 표 — 큰 화면에선 주방 기물 | 홀 기물 나란히 ── */}
+      <div className="mt-4 grid items-start gap-4 xl:grid-cols-2">
       {groupBySection(shown).map(([section, list]) => {
         const sub = orderTotals(list)
         return (
-          <div key={section} className="card mt-4">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div key={section} className="card !mb-0 min-w-0 xl:!p-4">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
               <h3 className="text-[15.5px] font-bold">{section}</h3>
               <span className="text-[12px] text-muted">{list.length}개</span>
               <span className="ml-auto text-[13px] font-bold tabular-nums">{won(sub.supply)}</span>
             </div>
 
-            <div className="-mx-1 overflow-x-auto">
-              <table className="tbl min-w-[640px]">
-                <thead>
+            {/* 큰 화면: 카드 안에서만 스크롤해 두 섹션이 한 화면에 들어오게 한다 */}
+            <div className="-mx-1 overflow-x-auto xl:max-h-[calc(100vh-260px)] xl:overflow-y-auto">
+              <table className="tbl min-w-[560px] text-[13px] xl:min-w-0 [&_td]:py-2 [&_th]:whitespace-nowrap [&_th]:py-2">
+                <thead className="sticky top-0 z-[1] bg-white">
                   <tr>
-                    <th className="w-[42px] text-center">NO</th>
-                    <th>품명</th>
-                    <th>규격</th>
+                    <th className="w-[34px] text-center">NO</th>
+                    <th className="!text-left">품명</th>
+                    <th className="!text-left">규격</th>
                     <th className="text-right">수량</th>
                     <th className="text-right">단가</th>
                     <th className="text-right">금액</th>
-                    <th>비고</th>
-                    {isOwner && <th className="w-[84px]" />}
+                    {isOwner && <th className="w-[64px]" />}
                   </tr>
                 </thead>
                 <tbody>
@@ -524,7 +527,7 @@ export function EquipOrders({
                     if (editingItem === it.id) {
                       return (
                         <tr key={it.id}>
-                          <td colSpan={isOwner ? 8 : 7}>
+                          <td colSpan={isOwner ? 7 : 6}>
                             <form
                               onSubmit={(e) => submitItem(e, () => setEditingItem(null), saveEquipItem)}
                               className="rounded-[12px] border border-brand/40 bg-brand/[.03] p-2.5"
@@ -542,17 +545,20 @@ export function EquipOrders({
                     }
                     return (
                       <tr key={it.id}>
-                        <td className="text-center text-muted tabular-nums">{no}</td>
-                        <td className="font-semibold">{it.name}</td>
-                        <td className="text-ink-2">{it.spec}</td>
-                        <td className="text-right tabular-nums">{qtyText(it.qty)}</td>
-                        <td className="text-right tabular-nums">{num(it.unit_price)}</td>
-                        <td className="text-right font-semibold tabular-nums">{num(lineAmount(it))}</td>
-                        <td className="text-[12px] text-muted">{it.note}</td>
+                        <td className="!text-center text-muted tabular-nums">{no}</td>
+                        <td className="!text-left font-semibold">
+                          {it.name}
+                          {/* 비고는 칸을 따로 두지 않고 품명 아래에 작게 */}
+                          {it.note && <div className="text-[11px] font-normal text-muted">{it.note}</div>}
+                        </td>
+                        <td className="!text-left text-[12px] text-ink-2">{it.spec}</td>
+                        <td className="whitespace-nowrap tabular-nums">{qtyText(it.qty)}</td>
+                        <td className="whitespace-nowrap tabular-nums">{num(it.unit_price)}</td>
+                        <td className="whitespace-nowrap font-semibold tabular-nums">{num(lineAmount(it))}</td>
                         {isOwner && (
-                          <td className="whitespace-nowrap text-right">
-                            <button type="button" onClick={() => setEditingItem(it.id)} className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">수정</button>
-                            <button type="button" onClick={() => removeItem(it.id)} className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad">삭제</button>
+                          <td className="whitespace-nowrap !px-0">
+                            <button type="button" onClick={() => setEditingItem(it.id)} className="rounded-md px-1 py-1 text-[11px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">수정</button>
+                            <button type="button" onClick={() => removeItem(it.id)} className="rounded-md px-1 py-1 text-[11px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad">삭제</button>
                           </td>
                         )}
                       </tr>
@@ -562,7 +568,8 @@ export function EquipOrders({
               </table>
             </div>
 
-            {isOwner && !query && (
+            {/* 추가 폼은 눌렀을 때만 펼친다 — 평소엔 버튼 한 줄 */}
+            {isOwner && !query && (addingSection === section ? (
               <form
                 onSubmit={(e) => {
                   const form = e.currentTarget
@@ -572,14 +579,24 @@ export function EquipOrders({
               >
                 <input type="hidden" name="order_id" value={current.id} />
                 <ItemFields section={section} />
-                <div className="mt-2 flex justify-end">
-                  <button type="submit" className="btn-ghost !px-3 !py-1.5 !text-[13px]">+ {section} 품목 추가</button>
+                <div className="mt-2 flex justify-end gap-2">
+                  <button type="button" onClick={() => setAddingSection(null)} className="btn-ghost !px-3 !py-1.5 !text-[13px]">닫기</button>
+                  <button type="submit" className="btn !px-3 !py-1.5 !text-[13px]">추가</button>
                 </div>
               </form>
-            )}
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddingSection(section)}
+                className="mt-2 w-full rounded-[10px] border border-dashed border-line py-1.5 text-[12.5px] font-semibold text-muted transition hover:border-brand/50 hover:text-ink"
+              >
+                + {section} 품목 추가
+              </button>
+            ))}
           </div>
         )
       })}
+      </div>
 
       {rows.length === 0 && isOwner && (
         <div className="card mt-4">
