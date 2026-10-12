@@ -31,6 +31,7 @@ const toLine = (i: EquipItem): EquipLine => ({
   qty: Number(i.qty),
   unit_price: Number(i.unit_price),
   note: i.note,
+  link: i.link,
 })
 
 function Delta({ before, after }: { before?: number; after?: number }) {
@@ -78,13 +79,14 @@ export function EquipImport({
   const [saving, startSaving] = useTransition()
 
   const base = orders.find((o) => o.id === baseId) ?? null
+  const [vatIncluded, setVatIncluded] = useState(base?.vat_included ?? false)
   const baseLines = useMemo(
     () => items.filter((i) => i.order_id === baseId).map(toLine),
     [items, baseId]
   )
   const diff = useMemo(
-    () => (lines ? compareLines(baseLines, lines) : null),
-    [baseLines, lines]
+    () => (lines ? compareLines(baseLines, lines, vatIncluded) : null),
+    [baseLines, lines, vatIncluded]
   )
 
   async function readFile(file: File) {
@@ -124,9 +126,11 @@ export function EquipImport({
   function save(form: HTMLFormElement) {
     if (!lines || !diff) return
     const fd = new FormData(form)
+    // diff 의 after 는 지난 발주 링크를 이어받은 줄이라 그것으로 저장한다
+    const current = diff.rows.filter((r) => r.after).map((r) => r.after!)
     const finalLines = keepMissing
-      ? [...lines, ...diff.rows.filter((r) => r.kind === 'missing').map((r) => r.before!)]
-      : lines
+      ? [...current, ...diff.rows.filter((r) => r.kind === 'missing').map((r) => r.before!)]
+      : current
     startSaving(async () => {
       try {
         const res = await importEquipOrder({
@@ -135,6 +139,7 @@ export function EquipImport({
           quote_date: String(fd.get('quote_date') ?? ''),
           open_checklist_id: String(fd.get('open_checklist_id') ?? ''),
           memo: String(fd.get('memo') ?? ''),
+          vat_included: vatIncluded,
           lines: finalLines,
         })
         setMessage({ ok: res.ok, text: res.message })
@@ -182,7 +187,10 @@ export function EquipImport({
             <select
               id="eq-base"
               value={baseId}
-              onChange={(e) => setBaseId(e.target.value)}
+              onChange={(e) => {
+                setBaseId(e.target.value)
+                setVatIncluded(orders.find((o) => o.id === e.target.value)?.vat_included ?? false)
+              }}
               className="fld-input"
             >
               <option value="">비교 안 함 (처음 등록)</option>
@@ -397,6 +405,15 @@ export function EquipImport({
               <label className="fld-label" htmlFor="im-memo">메모</label>
               <input id="im-memo" name="memo" placeholder="단가 인상 협의 결과 등" className="fld-input" />
             </div>
+
+            <label className="mt-3 flex items-center gap-2 text-[13px] font-semibold">
+              <input
+                type="checkbox"
+                checked={vatIncluded}
+                onChange={(e) => setVatIncluded(e.target.checked)}
+              />
+              단가가 부가세 포함가 (쿠팡 등 소매 구매)
+            </label>
 
             {diff.counts.missing > 0 && (
               <label className="mt-3 flex items-center gap-2 text-[13px] font-semibold">

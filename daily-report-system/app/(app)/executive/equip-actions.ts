@@ -42,7 +42,14 @@ function readHeader(formData: FormData) {
     quote_date: /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null,
     open_checklist_id: rawOpen || null,
     memo: String(formData.get('memo') ?? '').trim().slice(0, 2000),
+    vat_included: String(formData.get('vat_included') ?? '') === 'on',
   }
+}
+
+/** http(s) 주소만 받는다 — 그 외(javascript: 등)는 버린다 */
+function cleanLink(v: unknown): string {
+  const s = String(v ?? '').trim()
+  return /^https?:\/\//i.test(s) ? s.slice(0, 1000) : ''
 }
 
 function cleanLine(l: EquipLine, i: number) {
@@ -55,6 +62,7 @@ function cleanLine(l: EquipLine, i: number) {
     qty: Number.isFinite(qty) ? Math.max(qty, 0) : 0,
     unit_price: Number.isFinite(price) ? Math.max(Math.round(price), 0) : 0,
     note: String(l.note || '').trim().slice(0, 120),
+    link: cleanLink(l.link),
     sort_order: i + 1,
   }
 }
@@ -72,6 +80,16 @@ export async function createEquipOrder(
   const header = readHeader(formData)
   if (!header.title) return { ok: false, message: '발주서 이름을 입력해주세요.' }
   const seed = String(formData.get('seed') ?? 'blank')
+
+  // 쿠팡 발주를 복사하면 '부가세 포함' 설정도 따라온다
+  if (seed !== 'blank' && !header.vat_included) {
+    const { data: src } = await supabase
+      .from('equip_orders')
+      .select('vat_included')
+      .eq('id', seed)
+      .maybeSingle()
+    if (src?.vat_included) header.vat_included = true
+  }
 
   const { data: created, error } = await supabase
     .from('equip_orders')
@@ -107,6 +125,7 @@ export async function importEquipOrder(input: {
   quote_date: string
   open_checklist_id: string
   memo: string
+  vat_included: boolean
   lines: EquipLine[]
 }): Promise<EquipResult> {
   const { supabase, userId } = await assertOwner()
@@ -114,6 +133,7 @@ export async function importEquipOrder(input: {
   Object.entries(input).forEach(([k, v]) => {
     if (typeof v === 'string') fd.set(k, v)
   })
+  if (input.vat_included) fd.set('vat_included', 'on')
   const header = readHeader(fd)
   if (!header.title) return { ok: false, message: '발주서 이름을 입력해주세요.' }
   const lines = (input.lines ?? []).filter((l) => String(l.name ?? '').trim()).slice(0, 2000)
@@ -184,10 +204,32 @@ function readItem(formData: FormData): Omit<ReturnType<typeof cleanLine>, 'sort_
       qty: num('qty'),
       unit_price: num('unit_price'),
       note: String(formData.get('note') ?? ''),
+      link: String(formData.get('link') ?? ''),
     },
     0
   )
   return rest
+}
+
+/** 주문함 체크 — 쿠팡에서 담을 때마다 하나씩 체크한다 */
+export async function toggleEquipItem(formData: FormData): Promise<void> {
+  const { supabase } = await assertOwner()
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  await supabase
+    .from('equip_order_items')
+    .update({ checked: String(formData.get('checked') ?? '') === 'true' })
+    .eq('id', id)
+  revalidatePath('/executive')
+}
+
+/** 이 발주서의 주문함 체크를 모두 지운다 (다음 매장 오픈 때 다시 쓰려고) */
+export async function resetEquipChecks(formData: FormData): Promise<void> {
+  const { supabase } = await assertOwner()
+  const orderId = String(formData.get('order_id') ?? '')
+  if (!orderId) return
+  await supabase.from('equip_order_items').update({ checked: false }).eq('order_id', orderId)
+  revalidatePath('/executive')
 }
 
 export async function addEquipItem(formData: FormData): Promise<void> {

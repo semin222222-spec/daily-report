@@ -13,6 +13,8 @@ export interface EquipOrder {
   status: EquipOrderStatus
   open_checklist_id: string | null
   memo: string
+  /** 단가가 부가세 포함가인지 (쿠팡 등 소매 구매). false 면 단가 + 10% */
+  vat_included: boolean
   created_by: string | null
   created_at: string
   updated_at: string
@@ -27,6 +29,10 @@ export interface EquipItem {
   qty: number
   unit_price: number
   note: string
+  /** 구매 링크 (쿠팡 상품 주소). 비어 있으면 품명으로 검색 링크를 만든다 */
+  link: string
+  /** 이번 발주에서 주문(장바구니 담기) 끝냈는지 */
+  checked: boolean
   sort_order: number
 }
 
@@ -38,9 +44,32 @@ export interface EquipLine {
   qty: number
   unit_price: number
   note: string
+  link?: string
 }
 
-export const EQUIP_SECTIONS = ['주방 기물', '홀 기물'] as const
+/** 섹션 표시 순서. 집기 업체 견적은 앞 둘, 쿠팡 발주는 나머지를 주로 쓴다 */
+export const EQUIP_SECTIONS = [
+  '주방 기물',
+  '홀 기물',
+  '식자재·음료',
+  '주방 가전',
+  '홀·매장 비품',
+  '청소·위생',
+  '소모품·포장',
+] as const
+
+/** 쿠팡에서 품명으로 검색하는 주소 */
+export function coupangSearchUrl(name: string, spec = ''): string {
+  return `https://www.coupang.com/np/search?q=${encodeURIComponent(`${name} ${spec}`.trim())}`
+}
+
+/**
+ * 품목의 구매 링크 — 직접 넣은 주소가 있으면 그것, 없으면 쿠팡 검색.
+ * 규격('본품, 블랙' 등)까지 넣으면 검색이 흐려져 품명만 쓴다.
+ */
+export function buyUrl(l: { name: string; link?: string }): string {
+  return l.link && /^https?:\/\//.test(l.link) ? l.link : coupangSearchUrl(l.name)
+}
 
 export const EQUIP_STATUSES: { value: EquipOrderStatus; label: string; pill: string }[] = [
   { value: 'quote', label: '견적', pill: 'bg-line-soft text-muted' },
@@ -58,11 +87,18 @@ export function lineAmount(l: { qty: number; unit_price: number }): number {
   return Math.round(Number(l.qty || 0) * Number(l.unit_price || 0))
 }
 
-/** 합계(공급가) · 부가세 · 총계 */
-export function orderTotals(lines: { qty: number; unit_price: number }[]) {
-  const supply = lines.reduce((s, l) => s + lineAmount(l), 0)
-  const vat = Math.round(supply * VAT_RATE)
-  return { supply, vat, total: supply + vat }
+/**
+ * 합계(공급가) · 부가세 · 총계.
+ * vatIncluded = true 면 단가가 이미 부가세 포함가(쿠팡) — 총계는 그대로, 공급가·부가세는 역산.
+ */
+export function orderTotals(lines: { qty: number; unit_price: number }[], vatIncluded = false) {
+  const sum = lines.reduce((s, l) => s + lineAmount(l), 0)
+  if (vatIncluded) {
+    const supply = Math.round(sum / (1 + VAT_RATE))
+    return { supply, vat: sum - supply, total: sum }
+  }
+  const vat = Math.round(sum * VAT_RATE)
+  return { supply: sum, vat, total: sum + vat }
 }
 
 /** 섹션 순서를 지키며 묶는다 (기본 섹션 먼저, 그 외는 나온 순서대로) */
@@ -124,6 +160,7 @@ const HEADER_KEYS: Record<keyof EquipLine | 'amount' | 'no', RegExp> = {
   amount: /(금액|金額|amount)/i,
   note: /(단위|單位|비고|unit$|메모|note|remark)/i,
   section: /(구분|분류|카테고리|category)/i,
+  link: /(링크|주소|url|link)/i,
 }
 
 function clean(v: Cell): string {
@@ -228,6 +265,7 @@ export function parseSheets(sheets: Cell[][][]): ParseResult {
         qty: Number.isNaN(qty) ? 0 : qty,
         unit_price: Number.isNaN(price) ? 0 : Math.round(price),
         note: clean(get('note')),
+        link: clean(get('link')),
       })
     })
   }
@@ -283,7 +321,11 @@ export interface DiffSummary {
  *  3) 그래도 남으면 지난 쪽 = 누락, 이번 쪽 = 신규
  * 결과는 이번 엑셀 순서대로, 누락 품목은 지난 발주 순서대로 뒤에 붙인다.
  */
-export function compareLines(before: EquipLine[], after: EquipLine[]): DiffSummary {
+export function compareLines(
+  before: EquipLine[],
+  after: EquipLine[],
+  vatIncluded = false
+): DiffSummary {
   const fullKey = (l: EquipLine) => normalize(l.name) + '|' + normalize(l.spec)
   const nameKey = (l: EquipLine) => normalize(l.name)
 
@@ -345,7 +387,8 @@ export function compareLines(before: EquipLine[], after: EquipLine[]): DiffSumma
     rows.push({
       kind: specChanged ? 'spec' : priceChanged ? 'price' : qtyChanged ? 'qty' : 'same',
       before: b,
-      after: a,
+      // 엑셀에 링크 칸이 없으면 지난 발주의 링크를 이어받는다
+      after: a.link || !b.link ? a : { ...a, link: b.link },
       priceChanged,
       qtyChanged,
     })
@@ -366,14 +409,17 @@ export function compareLines(before: EquipLine[], after: EquipLine[]): DiffSumma
     rows,
     counts,
     priceImpact,
-    before: orderTotals(before),
-    after: orderTotals(after),
+    before: orderTotals(before, vatIncluded),
+    after: orderTotals(after, vatIncluded),
   }
 }
 
-/** 엑셀 내려받기용 행 (견적서와 같은 칸 순서) — 다음 견적 때 이 양식 그대로 받으면 된다 */
-export function toSheetRows(items: EquipLine[]): (string | number)[][] {
-  const head = ['NO', '구분', '품명', '규격', '수량', '단가', '금액', '비고']
+/**
+ * 엑셀 내려받기용 행 (견적서와 같은 칸 순서) — 다음 견적 때 이 양식 그대로 받으면 된다.
+ * 링크 칸이 있어 엑셀에서 눌러 바로 구매 페이지로 갈 수 있다.
+ */
+export function toSheetRows(items: EquipLine[], vatIncluded = false): (string | number)[][] {
+  const head = ['NO', '구분', '품명', '규격', '수량', '단가', '금액', '비고', '링크']
   const body = items.map((l, i) => [
     i + 1,
     l.section,
@@ -383,14 +429,16 @@ export function toSheetRows(items: EquipLine[]): (string | number)[][] {
     l.unit_price,
     lineAmount(l),
     l.note,
+    // 쿠팡(부가세 포함) 발주는 링크가 없어도 검색 주소를 채워 엑셀에서 바로 누를 수 있게
+    l.link || (vatIncluded ? buyUrl(l) : ''),
   ])
-  const t = orderTotals(items)
+  const t = orderTotals(items, vatIncluded)
   return [
     head,
     ...body,
     [],
-    ['', '', '합계', '', '', '', t.supply, ''],
-    ['', '', '부가세', '', '', '', t.vat, ''],
+    ['', '', vatIncluded ? '공급가 (역산)' : '합계', '', '', '', t.supply, ''],
+    ['', '', '부가세', '', '', '', t.vat, vatIncluded ? '단가에 포함' : ''],
     ['', '', '총계', '', '', '', t.total, ''],
   ]
 }

@@ -6,6 +6,7 @@ import { num, won } from '@/lib/format'
 import {
   EQUIP_SECTIONS,
   EQUIP_STATUSES,
+  buyUrl,
   equipStatusMeta,
   groupBySection,
   lineAmount,
@@ -21,8 +22,10 @@ import {
   createEquipOrder,
   deleteEquipItem,
   deleteEquipOrder,
+  resetEquipChecks,
   saveEquipItem,
   saveEquipOrder,
+  toggleEquipItem,
   type EquipResult,
 } from './equip-actions'
 import { EquipImport } from './EquipImport'
@@ -153,6 +156,15 @@ function OrderForm({
         />
       </div>
 
+      <label className="mt-3 flex items-center gap-2 text-[13px] font-semibold">
+        <input
+          type="checkbox"
+          name="vat_included"
+          defaultChecked={editing ? editing.vat_included : false}
+        />
+        단가가 부가세 포함가 (쿠팡 등 소매 구매)
+      </label>
+
       {state && !state.ok && (
         <div className="mt-3 text-[13px] font-semibold text-bad" role="status">{state.message}</div>
       )}
@@ -180,13 +192,20 @@ function ItemFields({ item, section }: { item?: EquipItem; section: string }) {
       <input name="qty" type="number" min={0} step="any" inputMode="decimal" defaultValue={item ? Number(item.qty) : ''} placeholder="수량" className="fld-input !py-2 !text-[13px]" />
       <input name="unit_price" type="number" min={0} inputMode="numeric" defaultValue={item ? Number(item.unit_price) : ''} placeholder="단가" className="fld-input !py-2 !text-[13px]" />
       <input name="note" defaultValue={item?.note} placeholder="비고" className="fld-input !py-2 !text-[13px]" />
+      <input
+        name="link"
+        type="url"
+        defaultValue={item?.link}
+        placeholder="구매 링크 (쿠팡 상품 주소, 비우면 품명으로 검색)"
+        className="fld-input col-span-2 !py-2 !text-[13px] shell:col-span-6 xl:col-span-3"
+      />
     </div>
   )
 }
 
 /** 견적서 모양 그대로 인쇄 (화면에는 안 보임) */
 function PrintSheet({ order, items }: { order: EquipOrder; items: EquipItem[] }) {
-  const t = orderTotals(items)
+  const t = orderTotals(items, order.vat_included)
   let no = 0
   return (
     <div id="equip-print-area" className="fixed -left-[10000px] top-0 w-[800px] bg-white text-black">
@@ -245,7 +264,11 @@ function PrintSheet({ order, items }: { order: EquipOrder; items: EquipItem[] })
           ))}
         </tbody>
       </table>
-      <p className="mt-2 text-[11px]">* 단가는 부가세 별도 금액입니다.</p>
+      <p className="mt-2 text-[11px]">
+        {order.vat_included
+          ? '* 단가는 부가세 포함 금액입니다. (합계·부가세는 역산)'
+          : '* 단가는 부가세 별도 금액입니다.'}
+      </p>
     </div>
   )
 }
@@ -283,6 +306,7 @@ export function EquipOrders({
   const [editingItem, setEditingItem] = useState<string | null>(null)
   const [addingSection, setAddingSection] = useState<string | null>(null)
   const [removed, setRemoved] = useState<Set<string>>(new Set())
+  const [checkMap, setCheckMap] = useState<Record<string, boolean>>({})
   const [query, setQuery] = useState('')
   const [, startTransition] = useTransition()
 
@@ -301,8 +325,36 @@ export function EquipOrders({
     return rows.filter((r) => `${r.name} ${r.spec} ${r.note}`.toLowerCase().includes(q))
   }, [rows, query])
 
-  const totals = orderTotals(rows)
+  const vatIn = current?.vat_included ?? false
+  const totals = orderTotals(rows, vatIn)
   const openTitle = openLists.find((o) => o.id === current?.open_checklist_id)?.title
+
+  // 주문함 체크 — 화면을 먼저 바꾸고 저장이 뒤따른다
+  const isChecked = (it: EquipItem) => checkMap[it.id] ?? it.checked
+  const checkedRows = rows.filter(isChecked)
+  const checkedTotal = orderTotals(checkedRows, vatIn).total
+
+  function toggleCheck(it: EquipItem) {
+    if (!isOwner) return
+    const next = !isChecked(it)
+    setCheckMap((m) => ({ ...m, [it.id]: next }))
+    startTransition(async () => {
+      const fd = new FormData()
+      fd.set('id', it.id)
+      fd.set('checked', String(next))
+      await toggleEquipItem(fd)
+    })
+  }
+
+  function resetChecks() {
+    if (!current || !confirm('주문함 체크를 모두 지울까요?')) return
+    setCheckMap(Object.fromEntries(rows.map((r) => [r.id, false])))
+    startTransition(async () => {
+      const fd = new FormData()
+      fd.set('order_id', current.id)
+      await resetEquipChecks(fd)
+    })
+  }
 
   function removeItem(id: string) {
     if (!isOwner) return
@@ -327,8 +379,13 @@ export function EquipOrders({
   async function downloadExcel() {
     if (!current) return
     const XLSX = await import('xlsx')
-    const ws = XLSX.utils.aoa_to_sheet(toSheetRows(rows))
-    ws['!cols'] = [{ wch: 5 }, { wch: 10 }, { wch: 24 }, { wch: 22 }, { wch: 7 }, { wch: 10 }, { wch: 12 }, { wch: 12 }]
+    const ws = XLSX.utils.aoa_to_sheet(toSheetRows(rows, vatIn))
+    ws['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 36 }, { wch: 22 }, { wch: 7 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 40 }]
+    // 링크 칸(I열)을 눌러서 열 수 있게 하이퍼링크로
+    rows.forEach((_, i) => {
+      const cell = ws[XLSX.utils.encode_cell({ r: i + 1, c: 8 })]
+      if (cell && typeof cell.v === 'string' && cell.v) cell.l = { Target: cell.v }
+    })
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '발주리스트')
     XLSX.writeFile(wb, `${current.title || '발주리스트'}.xlsx`)
@@ -467,11 +524,11 @@ export function EquipOrders({
             <div className="text-[15px] font-extrabold tabular-nums">{num(rows.length)}개</div>
           </div>
           <div>
-            <div className="text-[11.5px] text-muted">합계 (공급가)</div>
+            <div className="text-[11.5px] text-muted">{vatIn ? '공급가 (역산)' : '합계 (공급가)'}</div>
             <div className="text-[15px] font-extrabold tabular-nums">{won(totals.supply)}</div>
           </div>
           <div>
-            <div className="text-[11.5px] text-muted">부가세</div>
+            <div className="text-[11.5px] text-muted">{vatIn ? '부가세 (포함됨)' : '부가세'}</div>
             <div className="text-[15px] font-extrabold tabular-nums">{won(totals.vat)}</div>
           </div>
           <div>
@@ -482,6 +539,31 @@ export function EquipOrders({
         <p className="mt-2 text-right text-[11.5px] text-muted">
           {wonInKorean(totals.total)} 원整
         </p>
+
+        {/* 쿠팡처럼 직접 담아 주문하는 발주 — 몇 개 담았는지 진행 표시 */}
+        {vatIn && rows.length > 0 && (
+          <div className="mt-3 border-t border-line-soft pt-3">
+            <div className="flex items-center gap-2.5">
+              <div className="bar">
+                <span style={{ width: `${(checkedRows.length / rows.length) * 100}%` }} />
+              </div>
+              <span className="shrink-0 text-[13px] font-extrabold tabular-nums">
+                {checkedRows.length}/{rows.length}
+              </span>
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-muted">
+              <span>
+                ☑ 주문한 품목 {won(checkedTotal)} · 남은 금액 {won(totals.total - checkedTotal)} — 🛒을
+                누르면 쿠팡 상품(또는 검색)이 열립니다
+              </span>
+              {isOwner && checkedRows.length > 0 && (
+                <button type="button" onClick={resetChecks} className="rounded-md px-1.5 py-0.5 font-semibold hover:bg-line-soft hover:text-ink">
+                  체크 모두 지우기
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 검색 ───────────────────────────────────── */}
@@ -498,13 +580,15 @@ export function EquipOrders({
       {/* ── 섹션별 품목 표 — 큰 화면에선 주방 기물 | 홀 기물 나란히 ── */}
       <div className="mt-4 grid items-start gap-4 xl:grid-cols-2">
       {groupBySection(shown).map(([section, list]) => {
-        const sub = orderTotals(list)
+        const sub = orderTotals(list, vatIn)
         return (
           <div key={section} className="card !mb-0 min-w-0 xl:!p-4">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <h3 className="text-[15.5px] font-bold">{section}</h3>
               <span className="text-[12px] text-muted">{list.length}개</span>
-              <span className="ml-auto text-[13px] font-bold tabular-nums">{won(sub.supply)}</span>
+              <span className="ml-auto text-[13px] font-bold tabular-nums">
+                {won(vatIn ? sub.total : sub.supply)}
+              </span>
             </div>
 
             {/* 큰 화면: 카드 안에서만 스크롤해 두 섹션이 한 화면에 들어오게 한다 */}
@@ -512,7 +596,7 @@ export function EquipOrders({
               <table className="tbl min-w-[560px] text-[13px] xl:min-w-0 [&_td]:py-2 [&_th]:whitespace-nowrap [&_th]:py-2">
                 <thead className="sticky top-0 z-[1] bg-white">
                   <tr>
-                    <th className="w-[34px] text-center">NO</th>
+                    <th className="w-[34px] !text-center">{vatIn ? '주문' : 'NO'}</th>
                     <th className="!text-left">품명</th>
                     <th className="!text-left">규격</th>
                     <th className="text-right">수량</th>
@@ -543,11 +627,39 @@ export function EquipOrders({
                         </tr>
                       )
                     }
+                    const done = vatIn && isChecked(it)
                     return (
-                      <tr key={it.id}>
-                        <td className="!text-center text-muted tabular-nums">{no}</td>
-                        <td className="!text-left font-semibold">
+                      <tr key={it.id} className={done ? 'bg-good/[.05]' : undefined}>
+                        <td className="!text-center text-muted tabular-nums">
+                          {vatIn ? (
+                            <button
+                              type="button"
+                              disabled={!isOwner}
+                              onClick={() => toggleCheck(it)}
+                              aria-label={done ? '주문 취소' : '주문함'}
+                              className={`mx-auto grid h-[20px] w-[20px] place-items-center rounded border-2 text-[11px] font-bold transition disabled:opacity-50 ${
+                                done ? 'border-brand bg-brand text-white' : 'border-line'
+                              }`}
+                            >
+                              {done ? '✓' : ''}
+                            </button>
+                          ) : (
+                            no
+                          )}
+                        </td>
+                        <td className={`!text-left font-semibold ${done ? 'text-muted line-through' : ''}`}>
                           {it.name}
+                          {(it.link || vatIn) && (
+                            <a
+                              href={buyUrl(it)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={it.link ? '구매 페이지 열기' : '쿠팡에서 검색'}
+                              className="ml-1 inline-block rounded px-1 text-[12px] no-underline hover:bg-line-soft"
+                            >
+                              🛒
+                            </a>
+                          )}
                           {/* 비고는 칸을 따로 두지 않고 품명 아래에 작게 */}
                           {it.note && <div className="text-[11px] font-normal text-muted">{it.note}</div>}
                         </td>
