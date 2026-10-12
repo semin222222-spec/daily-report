@@ -367,6 +367,30 @@ export function EquipOrders({
     ? ordered.find((it) => !isChecked(it) && !skipped.has(it.id)) ?? null
     : null
 
+  // 탭 한꺼번에 열기: 링크가 있고 아직 안 담은 품목을 묶음 단위로
+  const [batchSize, setBatchSize] = useState(10)
+  const linkedLeft = ordered.filter((it) => it.link && !isChecked(it) && !skipped.has(it.id))
+
+  function openBatch() {
+    const batch = linkedLeft.slice(0, batchSize)
+    let opened = 0
+    // 클릭 한 번 안에서 바로 열어야 브라우저가 팝업으로 막지 않는다 (사이트 팝업 허용 필요)
+    for (const it of batch) {
+      const w = window.open(it.link, '_blank')
+      if (!w) break
+      w.opener = null
+      opened++
+      toggleCheck(it)
+    }
+    if (opened < batch.length) {
+      alert(
+        `${batch.length}개 중 ${opened}개만 열렸습니다.\n\n` +
+          '브라우저가 팝업을 막았습니다. 주소창 오른쪽의 팝업 차단 아이콘을 눌러 ' +
+          '이 사이트의 팝업을 「항상 허용」한 뒤 다시 눌러주세요.'
+      )
+    }
+  }
+
   /** 아직 안 담은 품목을 "품명 / 규격 / 수량" 줄로 복사 (카톡으로 넘기기용) */
   async function copyList() {
     const text = ordered
@@ -622,6 +646,29 @@ export function EquipOrders({
                 )}
               </span>
             </div>
+
+            {/* 탭 한꺼번에 열기 — PC 에서 링크 넣어 둔 품목을 묶음으로 띄운다 */}
+            {isOwner && linkedLeft.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[12px] border border-line bg-page px-3 py-2.5">
+                <div className="min-w-0 flex-1 text-[12.5px]">
+                  <b>링크 있는 품목 {linkedLeft.length}개</b>가 아직 남았습니다.
+                  <span className="text-muted"> 탭으로 한꺼번에 열고, 탭마다 「장바구니 담기」만 누르세요. 연 품목은 자동 체크됩니다.</span>
+                </div>
+                <select
+                  value={batchSize}
+                  onChange={(e) => setBatchSize(Number(e.target.value))}
+                  aria-label="한 번에 열 개수"
+                  className="fld-input !w-auto !py-1.5 !text-[12.5px]"
+                >
+                  {[5, 10, 20].map((n) => (
+                    <option key={n} value={n}>{n}개씩</option>
+                  ))}
+                </select>
+                <button type="button" onClick={openBatch} className="btn !px-3 !py-1.5 !text-[12.5px]">
+                  🗂 {Math.min(batchSize, linkedLeft.length)}개 탭으로 열기
+                </button>
+              </div>
+            )}
 
             {/* 차례로 담기 — 버튼 하나로 다음 품목 쿠팡 창 열기 + 체크 */}
             {isOwner && (
