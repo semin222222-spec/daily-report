@@ -363,6 +363,8 @@ export function EquipOrders({
   const [skipped, setSkipped] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState(false)
   const ordered = groupBySection(rows).flatMap(([, list]) => list)
+  // 휴대폰 카드 목록의 번호 (검색으로 걸러도 원래 번호 유지)
+  const noMap = new Map(ordered.map((it, i) => [it.id, i + 1]))
   const nextItem = vatIn
     ? ordered.find((it) => !isChecked(it) && !skipped.has(it.id)) ?? null
     : null
@@ -630,7 +632,7 @@ export function EquipOrders({
                 ☑ 주문한 품목 {won(checkedTotal)} · 남은 금액 {won(totals.total - checkedTotal)} — 🛒을
                 누르면 쿠팡 상품(또는 검색)이 열립니다
               </span>
-              <span className="flex gap-1">
+              <span className="flex flex-wrap gap-1 [&>button]:whitespace-nowrap">
                 {isOwner && (
                   <button type="button" onClick={() => setMode('links')} className="rounded-md px-1.5 py-0.5 font-semibold text-brand-deep hover:bg-brand/10">
                     🔗 링크 한꺼번에 입력 ({rows.filter((r) => r.link).length}/{rows.length})
@@ -649,7 +651,8 @@ export function EquipOrders({
 
             {/* 탭 한꺼번에 열기 — PC 에서 링크 넣어 둔 품목을 묶음으로 띄운다 */}
             {isOwner && linkedLeft.length > 0 && (
-              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[12px] border border-line bg-page px-3 py-2.5">
+              // 휴대폰에선 탭 여러 개가 불편해 숨긴다 — 「차례로 담기」를 쓴다
+              <div className="mt-3 hidden flex-wrap items-center gap-2 rounded-[12px] border border-line bg-page px-3 py-2.5 shell:flex">
                 <div className="min-w-0 flex-1 text-[12.5px]">
                   <b>링크 있는 품목 {linkedLeft.length}개</b>가 아직 남았습니다.
                   <span className="text-muted"> 탭으로 한꺼번에 열고, 탭마다 「장바구니 담기」만 누르세요. 연 품목은 자동 체크됩니다.</span>
@@ -674,7 +677,8 @@ export function EquipOrders({
             {isOwner && (
               nextItem ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[12px] border border-brand/30 bg-brand/[.04] px-3 py-2.5">
-                  <div className="min-w-0 flex-1">
+                  {/* 휴대폰에선 품목 정보 한 줄, 버튼 한 줄 */}
+                  <div className="min-w-0 basis-full shell:basis-auto shell:flex-1">
                     <div className="text-[11px] font-semibold text-brand-deep">
                       다음 담을 품목 · {nextItem.section}
                     </div>
@@ -694,7 +698,7 @@ export function EquipOrders({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => toggleCheck(nextItem)}
-                    className="btn !px-3 !py-1.5 !text-[12.5px] no-underline"
+                    className="btn flex-1 !px-3 !py-2 text-center !text-[13px] no-underline shell:flex-none shell:!py-1.5 shell:!text-[12.5px]"
                   >
                     🛒 쿠팡 열고 체크 →
                   </a>
@@ -736,8 +740,93 @@ export function EquipOrders({
               </span>
             </div>
 
-            {/* 큰 화면: 카드 안에서만 스크롤해 두 섹션이 한 화면에 들어오게 한다 */}
-            <div className="-mx-1 overflow-x-auto xl:max-h-[calc(100vh-260px)] xl:overflow-y-auto">
+            {/* 휴대폰: 표 대신 카드 목록 — 좌우 스크롤 없이 한눈에 */}
+            <div className="divide-y divide-line-soft shell:hidden">
+              {list.map((it) => {
+                if (editingItem === it.id) {
+                  return (
+                    <form
+                      key={it.id}
+                      onSubmit={(e) => submitItem(e, () => setEditingItem(null), saveEquipItem)}
+                      className="my-2 rounded-[12px] border border-brand/40 bg-brand/[.03] p-2.5"
+                    >
+                      <input type="hidden" name="id" value={it.id} />
+                      <ItemFields item={it} section={section} />
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button type="button" onClick={() => setEditingItem(null)} className="btn-ghost !py-1.5 !text-[12.5px]">취소</button>
+                        <button type="submit" className="btn !py-1.5 !text-[12.5px]">수정 저장</button>
+                      </div>
+                    </form>
+                  )
+                }
+                const done = vatIn && isChecked(it)
+                return (
+                  <div key={it.id} className={`flex items-start gap-2.5 py-2.5 ${done ? 'opacity-60' : ''}`}>
+                    {vatIn ? (
+                      <button
+                        type="button"
+                        disabled={!isOwner}
+                        onClick={() => toggleCheck(it)}
+                        aria-label={done ? '주문 취소' : '주문함'}
+                        className="-m-1.5 grid h-9 w-9 shrink-0 place-items-center disabled:opacity-50"
+                      >
+                        <span
+                          className={`grid h-[22px] w-[22px] place-items-center rounded border-2 text-[12px] font-bold ${
+                            done ? 'border-brand bg-brand text-white' : 'border-line'
+                          }`}
+                        >
+                          {done ? '✓' : ''}
+                        </span>
+                      </button>
+                    ) : (
+                      <span className="w-6 shrink-0 pt-0.5 text-center text-[12px] text-muted tabular-nums">
+                        {noMap.get(it.id)}
+                      </span>
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <div className={`text-[14px] font-semibold leading-snug ${done ? 'line-through' : ''}`}>
+                        {it.name}
+                      </div>
+                      {(it.spec || it.note) && (
+                        <div className="mt-0.5 text-[12px] text-muted">
+                          {[it.spec, it.note].filter(Boolean).join(' · ')}
+                        </div>
+                      )}
+                      <div className="mt-0.5 flex items-center gap-1 text-[12.5px]">
+                        <span className="text-ink-2 tabular-nums">
+                          {qtyText(it.qty)}개 × {num(it.unit_price)}
+                        </span>
+                        {isOwner && (
+                          <>
+                            <button type="button" onClick={() => setEditingItem(it.id)} className="rounded-md px-1.5 py-1 text-[11.5px] font-semibold text-muted">수정</button>
+                            <button type="button" onClick={() => removeItem(it.id)} className="-ml-1 rounded-md px-1.5 py-1 text-[11.5px] font-semibold text-muted">삭제</button>
+                          </>
+                        )}
+                        <b className="ml-auto tabular-nums">{num(lineAmount(it))}원</b>
+                      </div>
+                    </div>
+
+                    {(it.link || vatIn) && (
+                      <a
+                        href={buyUrl(it)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={it.link ? '구매 페이지 열기' : '쿠팡에서 검색'}
+                        className={`grid h-10 w-10 shrink-0 place-items-center rounded-[10px] border text-[17px] no-underline ${
+                          it.link ? 'border-brand/40 bg-brand/[.06]' : 'border-line bg-white'
+                        }`}
+                      >
+                        🛒
+                      </a>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* PC 표. 큰 화면: 카드 안에서만 스크롤해 두 섹션이 한 화면에 들어오게 한다 */}
+            <div className="-mx-1 hidden overflow-x-auto shell:block xl:max-h-[calc(100vh-260px)] xl:overflow-y-auto">
               <table className="tbl min-w-[560px] text-[13px] xl:min-w-0 [&_td]:py-2 [&_th]:whitespace-nowrap [&_th]:py-2">
                 <thead className="sticky top-0 z-[1] bg-white">
                   <tr>
