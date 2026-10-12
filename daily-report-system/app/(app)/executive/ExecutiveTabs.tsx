@@ -9,13 +9,14 @@ import { EquipOrders } from './EquipOrders'
 import { MeetingNotes } from './MeetingNotes'
 import { OpenChecklist } from './OpenChecklist'
 
-type Tab = 'files' | 'notes' | 'open' | 'equip'
+type Tab = 'files' | 'notes' | 'open' | 'equip' | 'coupang'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'files', label: '📁 자료함' },
   { key: 'notes', label: '📝 회의록' },
   { key: 'open', label: '🏗️ 매장 오픈 체크리스트' },
   { key: 'equip', label: '🍳 주방 집기 발주' },
+  { key: 'coupang', label: '🛒 쿠팡 발주' },
 ]
 
 export function ExecutiveTabs({
@@ -80,8 +81,11 @@ export function ExecutiveTabs({
           today={today}
         />
       )}
-      {tab === 'equip' && (
+      {/* key 로 탭마다 따로 그려 선택 상태가 섞이지 않게 */}
+      {(tab === 'equip' || tab === 'coupang') && (
         <EquipOrders
+          key={tab}
+          kind={tab}
           orders={equipOrders}
           items={equipItems}
           openLists={openLists}

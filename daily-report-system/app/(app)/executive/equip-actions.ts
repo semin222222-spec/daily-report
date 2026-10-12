@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { EquipItem, EquipLine, EquipOrderStatus } from '@/lib/equip-order'
+import type { EquipItem, EquipLine, EquipOrderKind, EquipOrderStatus } from '@/lib/equip-order'
 
 /**
  * 주방 집기 발주리스트 저장·삭제. 회의록과 같이 오너만 쓴다.
@@ -44,6 +44,11 @@ function readHeader(formData: FormData) {
     memo: String(formData.get('memo') ?? '').trim().slice(0, 2000),
     vat_included: String(formData.get('vat_included') ?? '') === 'on',
   }
+}
+
+/** 새 발주서의 종류 (탭). 수정 때는 바꾸지 않는다 */
+function readKind(formData: FormData): EquipOrderKind {
+  return String(formData.get('kind') ?? '') === 'coupang' ? 'coupang' : 'equip'
 }
 
 /** http(s) 주소만 받는다 — 그 외(javascript: 등)는 버린다 */
@@ -93,7 +98,7 @@ export async function createEquipOrder(
 
   const { data: created, error } = await supabase
     .from('equip_orders')
-    .insert({ ...header, created_by: userId })
+    .insert({ ...header, kind: readKind(formData), created_by: userId })
     .select('id')
     .single()
   if (error || !created) {
@@ -126,6 +131,7 @@ export async function importEquipOrder(input: {
   open_checklist_id: string
   memo: string
   vat_included: boolean
+  kind: EquipOrderKind
   lines: EquipLine[]
 }): Promise<EquipResult> {
   const { supabase, userId } = await assertOwner()
@@ -141,7 +147,7 @@ export async function importEquipOrder(input: {
 
   const { data: created, error } = await supabase
     .from('equip_orders')
-    .insert({ ...header, created_by: userId })
+    .insert({ ...header, kind: readKind(fd), created_by: userId })
     .select('id')
     .single()
   if (error || !created) {

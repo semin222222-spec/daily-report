@@ -5,8 +5,17 @@
 
 export type EquipOrderStatus = 'quote' | 'ordered' | 'delivered'
 
+/** 발주서 종류 — 임원전용의 탭이 갈린다 */
+export type EquipOrderKind = 'equip' | 'coupang'
+
+/** kind 칸이 생기기 전(026 이전) 데이터는 부가세 포함 여부로 가른다 */
+export function orderKind(o: { kind?: EquipOrderKind | null; vat_included?: boolean }): EquipOrderKind {
+  return o.kind ?? (o.vat_included ? 'coupang' : 'equip')
+}
+
 export interface EquipOrder {
   id: string
+  kind?: EquipOrderKind
   title: string
   vendor: string
   quote_date: string | null

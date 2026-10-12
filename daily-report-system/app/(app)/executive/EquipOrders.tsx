@@ -10,11 +10,13 @@ import {
   equipStatusMeta,
   groupBySection,
   lineAmount,
+  orderKind,
   orderTotals,
   toSheetRows,
   wonInKorean,
   type EquipItem,
   type EquipOrder,
+  type EquipOrderKind,
 } from '@/lib/equip-order'
 import type { OpenChecklist as OpenList } from '@/lib/types'
 import {
@@ -43,12 +45,14 @@ const qtyText = (q: number) => Number(q).toLocaleString('ko-KR', { maximumFracti
 
 /** 발주서 만들기 / 머리 수정 */
 function OrderForm({
+  kind,
   editing,
   orders,
   openLists,
   onDone,
   onCreated,
 }: {
+  kind: EquipOrderKind
   editing: EquipOrder | null
   orders: EquipOrder[]
   openLists: OpenList[]
@@ -74,6 +78,7 @@ function OrderForm({
         가맹점 오픈 한 건 = 발주서 한 장. 지난 발주서를 복사해서 시작하면 수량만 고치면 됩니다.
       </p>
       {editing && <input type="hidden" name="id" value={editing.id} />}
+      <input type="hidden" name="kind" value={kind} />
 
       <div className="form-grid">
         <div>
@@ -83,7 +88,7 @@ function OrderForm({
             name="title"
             required
             defaultValue={editing?.title ?? ''}
-            placeholder="예: 홍대점 오픈 집기"
+            placeholder={kind === 'coupang' ? '예: 홍대점 쿠팡 발주' : '예: 홍대점 오픈 집기'}
             className="fld-input"
           />
         </div>
@@ -160,7 +165,7 @@ function OrderForm({
         <input
           type="checkbox"
           name="vat_included"
-          defaultChecked={editing ? editing.vat_included : false}
+          defaultChecked={editing ? editing.vat_included : kind === 'coupang'}
         />
         단가가 부가세 포함가 (쿠팡 등 소매 구매)
       </label>
@@ -286,21 +291,28 @@ function FragmentRows({ section, children }: { section: string; children: React.
 }
 
 /**
- * 주방 집기 발주리스트.
+ * 발주리스트 — 주방 집기(업체 견적) / 쿠팡 발주 탭이 같은 화면을 쓴다.
  * 발주서를 골라 품목을 보고 고친다. [엑셀 업로드·비교]로 업체가 보낸
  * 새 견적을 지난 발주와 비교한 뒤 새 발주서로 저장한다.
  */
 export function EquipOrders({
-  orders,
+  kind,
+  orders: allOrders,
   items,
   openLists,
   isOwner,
 }: {
+  kind: EquipOrderKind
   orders: EquipOrder[]
   items: EquipItem[]
   openLists: OpenList[]
   isOwner: boolean
 }) {
+  // 이 탭 종류의 발주서만
+  const orders = useMemo(
+    () => allOrders.filter((o) => orderKind(o) === kind),
+    [allOrders, kind]
+  )
   const [selected, setSelected] = useState<string | null>(orders[0]?.id ?? null)
   const [mode, setMode] = useState<'view' | 'create' | 'edit' | 'import'>('view')
   const [editingItem, setEditingItem] = useState<string | null>(null)
@@ -344,6 +356,29 @@ export function EquipOrders({
       fd.set('checked', String(next))
       await toggleEquipItem(fd)
     })
+  }
+
+  // 차례로 담기: 화면에 보이는 순서(섹션 순)대로 아직 체크 안 한 첫 품목
+  const [skipped, setSkipped] = useState<Set<string>>(new Set())
+  const [copied, setCopied] = useState(false)
+  const ordered = groupBySection(rows).flatMap(([, list]) => list)
+  const nextItem = vatIn
+    ? ordered.find((it) => !isChecked(it) && !skipped.has(it.id)) ?? null
+    : null
+
+  /** 아직 안 담은 품목을 "품명 / 규격 / 수량" 줄로 복사 (카톡으로 넘기기용) */
+  async function copyList() {
+    const text = ordered
+      .filter((it) => !isChecked(it))
+      .map((it) => `- ${it.name}${it.spec ? ` / ${it.spec}` : ''} × ${qtyText(it.qty)}`)
+      .join('\n')
+    try {
+      await navigator.clipboard.writeText(`[${current?.title ?? '발주'}] 남은 품목\n${text}`)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      alert('복사하지 못했습니다. 브라우저 권한을 확인해주세요.')
+    }
   }
 
   function resetChecks() {
@@ -395,6 +430,7 @@ export function EquipOrders({
   if (mode === 'create' || (mode === 'edit' && current)) {
     return (
       <OrderForm
+        kind={kind}
         editing={mode === 'edit' ? current : null}
         orders={orders}
         openLists={openLists}
@@ -406,6 +442,7 @@ export function EquipOrders({
   if (mode === 'import') {
     return (
       <EquipImport
+        kind={kind}
         orders={orders}
         items={items}
         openLists={openLists}
@@ -436,7 +473,9 @@ export function EquipOrders({
         <p className="py-6 text-[13.5px] text-muted">
           아직 발주서가 없습니다.
           <br />
-          업체 견적 엑셀을 올리거나 직접 만들어 시작하세요.
+          {kind === 'coupang'
+            ? '쿠팡에서 살 품목을 직접 추가하거나 엑셀로 올려 시작하세요.'
+            : '업체 견적 엑셀을 올리거나 직접 만들어 시작하세요.'}
         </p>
         <div className="flex justify-center">{toolbar}</div>
       </div>
@@ -556,12 +595,55 @@ export function EquipOrders({
                 ☑ 주문한 품목 {won(checkedTotal)} · 남은 금액 {won(totals.total - checkedTotal)} — 🛒을
                 누르면 쿠팡 상품(또는 검색)이 열립니다
               </span>
-              {isOwner && checkedRows.length > 0 && (
-                <button type="button" onClick={resetChecks} className="rounded-md px-1.5 py-0.5 font-semibold hover:bg-line-soft hover:text-ink">
-                  체크 모두 지우기
+              <span className="flex gap-1">
+                <button type="button" onClick={copyList} className="rounded-md px-1.5 py-0.5 font-semibold hover:bg-line-soft hover:text-ink">
+                  {copied ? '복사됨 ✓' : '남은 목록 복사'}
                 </button>
-              )}
+                {isOwner && checkedRows.length > 0 && (
+                  <button type="button" onClick={resetChecks} className="rounded-md px-1.5 py-0.5 font-semibold hover:bg-line-soft hover:text-ink">
+                    체크 모두 지우기
+                  </button>
+                )}
+              </span>
             </div>
+
+            {/* 차례로 담기 — 버튼 하나로 다음 품목 쿠팡 창 열기 + 체크 */}
+            {isOwner && (
+              nextItem ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[12px] border border-brand/30 bg-brand/[.04] px-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-semibold text-brand-deep">
+                      다음 담을 품목 · {nextItem.section}
+                    </div>
+                    <div className="truncate text-[13.5px] font-bold">
+                      {nextItem.name}
+                      {nextItem.spec && <span className="font-normal text-muted"> · {nextItem.spec}</span>}
+                    </div>
+                    <div className="text-[12px] text-ink-2">
+                      수량 <b>{qtyText(nextItem.qty)}</b> · {won(lineAmount(nextItem))}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setSkipped((s) => new Set(s).add(nextItem.id))} className="btn-ghost !px-3 !py-1.5 !text-[12.5px]">
+                    건너뛰기
+                  </button>
+                  <a
+                    href={buyUrl(nextItem)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => toggleCheck(nextItem)}
+                    className="btn !px-3 !py-1.5 !text-[12.5px] no-underline"
+                  >
+                    🛒 쿠팡 열고 체크 →
+                  </a>
+                </div>
+              ) : (
+                rows.length > checkedRows.length && skipped.size > 0 && (
+                  <button type="button" onClick={() => setSkipped(new Set())} className="mt-3 text-[12px] font-semibold text-muted hover:text-ink">
+                    건너뛴 품목 {skipped.size}개 다시 보기
+                  </button>
+                )
+              )
+            )}
           </div>
         )}
       </div>

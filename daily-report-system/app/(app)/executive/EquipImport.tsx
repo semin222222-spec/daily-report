@@ -10,6 +10,7 @@ import {
   type EquipItem,
   type EquipLine,
   type EquipOrder,
+  type EquipOrderKind,
 } from '@/lib/equip-order'
 import type { OpenChecklist as OpenList } from '@/lib/types'
 import { importEquipOrder } from './equip-actions'
@@ -54,6 +55,7 @@ function Delta({ before, after }: { before?: number; after?: number }) {
  * 엑셀은 브라우저 안에서만 읽는다(서버로 파일을 보내지 않음).
  */
 export function EquipImport({
+  kind,
   orders,
   items,
   openLists,
@@ -61,6 +63,7 @@ export function EquipImport({
   onCancel,
   onSaved,
 }: {
+  kind: EquipOrderKind
   orders: EquipOrder[]
   items: EquipItem[]
   openLists: OpenList[]
@@ -79,7 +82,7 @@ export function EquipImport({
   const [saving, startSaving] = useTransition()
 
   const base = orders.find((o) => o.id === baseId) ?? null
-  const [vatIncluded, setVatIncluded] = useState(base?.vat_included ?? false)
+  const [vatIncluded, setVatIncluded] = useState(base?.vat_included ?? kind === 'coupang')
   const baseLines = useMemo(
     () => items.filter((i) => i.order_id === baseId).map(toLine),
     [items, baseId]
@@ -140,6 +143,7 @@ export function EquipImport({
           open_checklist_id: String(fd.get('open_checklist_id') ?? ''),
           memo: String(fd.get('memo') ?? ''),
           vat_included: vatIncluded,
+          kind,
           lines: finalLines,
         })
         setMessage({ ok: res.ok, text: res.message })
