@@ -2,6 +2,7 @@ import { ReadOnlyBanner } from '@/components/ui/ReadOnlyBanner'
 import { todayKST } from '@/lib/format'
 import { guardMenu } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import type { EquipItem, EquipOrder } from '@/lib/equip-order'
 import type { OcFile } from '@/lib/owner-center'
 import type { MeetingNote, OpenChecklist, OpenTask } from '@/lib/types'
 import { ExecutiveTabs } from './ExecutiveTabs'
@@ -17,7 +18,7 @@ export default async function ExecutivePage() {
   const isOwner = profile.role === 'owner'
   const supabase = createClient()
 
-  const [fileRes, noteRes, listRes, taskRes] = await Promise.all([
+  const [fileRes, noteRes, listRes, taskRes, equipRes, equipItemRes] = await Promise.all([
     supabase
       .from('oc_files')
       .select('*')
@@ -37,11 +38,23 @@ export default async function ExecutivePage() {
       .from('open_checklist_tasks')
       .select('*')
       .order('sort_order', { ascending: true }),
+    // 주방 집기 발주서 — 엑셀 비교도 화면에서 하므로 품목까지 한 번에 받는다
+    supabase
+      .from('equip_orders')
+      .select('*')
+      .order('quote_date', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('equip_order_items')
+      .select('*')
+      .order('sort_order', { ascending: true }),
   ])
   const files = (fileRes.data ?? []) as OcFile[]
   const notes = (noteRes.data ?? []) as MeetingNote[]
   const openLists = (listRes.data ?? []) as OpenChecklist[]
   const openTasks = (taskRes.data ?? []) as OpenTask[]
+  const equipOrders = (equipRes.data ?? []) as EquipOrder[]
+  const equipItems = (equipItemRes.data ?? []) as EquipItem[]
 
   // 원본 다운로드 URL + 썸네일 URL (이미지 원본 또는 AI·PDF 미리보기)
   const urls: Record<string, string> = {}
@@ -97,6 +110,8 @@ export default async function ExecutivePage() {
         notes={notes}
         openLists={openLists}
         openTasks={openTasks}
+        equipOrders={equipOrders}
+        equipItems={equipItems}
         today={todayKST()}
         isOwner={isOwner}
       />

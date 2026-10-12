@@ -2,17 +2,20 @@
 
 import { useState } from 'react'
 import { FileManager } from '@/app/(app)/owner-center/[folder]/FileManager'
+import type { EquipItem, EquipOrder } from '@/lib/equip-order'
 import type { OcFile } from '@/lib/owner-center'
 import type { MeetingNote, OpenChecklist as OpenList, OpenTask } from '@/lib/types'
+import { EquipOrders } from './EquipOrders'
 import { MeetingNotes } from './MeetingNotes'
 import { OpenChecklist } from './OpenChecklist'
 
-type Tab = 'files' | 'notes' | 'open'
+type Tab = 'files' | 'notes' | 'open' | 'equip'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'files', label: '📁 자료함' },
   { key: 'notes', label: '📝 회의록' },
   { key: 'open', label: '🏗️ 매장 오픈 체크리스트' },
+  { key: 'equip', label: '🍳 주방 집기 발주' },
 ]
 
 export function ExecutiveTabs({
@@ -22,6 +25,8 @@ export function ExecutiveTabs({
   notes,
   openLists,
   openTasks,
+  equipOrders,
+  equipItems,
   today,
   isOwner,
 }: {
@@ -31,6 +36,8 @@ export function ExecutiveTabs({
   notes: MeetingNote[]
   openLists: OpenList[]
   openTasks: OpenTask[]
+  equipOrders: EquipOrder[]
+  equipItems: EquipItem[]
   today: string
   isOwner: boolean
 }) {
@@ -71,6 +78,14 @@ export function ExecutiveTabs({
           tasks={openTasks}
           isOwner={isOwner}
           today={today}
+        />
+      )}
+      {tab === 'equip' && (
+        <EquipOrders
+          orders={equipOrders}
+          items={equipItems}
+          openLists={openLists}
+          isOwner={isOwner}
         />
       )}
     </>

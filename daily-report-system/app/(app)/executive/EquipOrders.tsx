@@ -1,0 +1,600 @@
+'use client'
+
+import { useMemo, useState, useTransition } from 'react'
+import { useFormState, useFormStatus } from 'react-dom'
+import { num, won } from '@/lib/format'
+import {
+  EQUIP_SECTIONS,
+  EQUIP_STATUSES,
+  equipStatusMeta,
+  groupBySection,
+  lineAmount,
+  orderTotals,
+  toSheetRows,
+  wonInKorean,
+  type EquipItem,
+  type EquipOrder,
+} from '@/lib/equip-order'
+import type { OpenChecklist as OpenList } from '@/lib/types'
+import {
+  addEquipItem,
+  createEquipOrder,
+  deleteEquipItem,
+  deleteEquipOrder,
+  saveEquipItem,
+  saveEquipOrder,
+  type EquipResult,
+} from './equip-actions'
+import { EquipImport } from './EquipImport'
+
+function SubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus()
+  return (
+    <button type="submit" className="btn" disabled={pending}>
+      {pending ? '저장 중…' : label}
+    </button>
+  )
+}
+
+const qtyText = (q: number) => Number(q).toLocaleString('ko-KR', { maximumFractionDigits: 2 })
+
+/** 발주서 만들기 / 머리 수정 */
+function OrderForm({
+  editing,
+  orders,
+  openLists,
+  onDone,
+  onCreated,
+}: {
+  editing: EquipOrder | null
+  orders: EquipOrder[]
+  openLists: OpenList[]
+  onDone: () => void
+  onCreated: (id: string) => void
+}) {
+  const [state, formAction] = useFormState<EquipResult | null, FormData>(
+    async (prev, fd) => {
+      const res = editing ? await saveEquipOrder(prev, fd) : await createEquipOrder(prev, fd)
+      if (res.ok) {
+        if (res.id) onCreated(res.id)
+        onDone()
+      }
+      return res
+    },
+    null
+  )
+
+  return (
+    <form action={formAction} className="card">
+      <h3 className="card-title">{editing ? '발주서 수정' : '새 발주서'}</h3>
+      <p className="card-sub">
+        가맹점 오픈 한 건 = 발주서 한 장. 지난 발주서를 복사해서 시작하면 수량만 고치면 됩니다.
+      </p>
+      {editing && <input type="hidden" name="id" value={editing.id} />}
+
+      <div className="form-grid">
+        <div>
+          <label className="fld-label" htmlFor="eq-title">발주서 이름</label>
+          <input
+            id="eq-title"
+            name="title"
+            required
+            defaultValue={editing?.title ?? ''}
+            placeholder="예: 홍대점 오픈 집기"
+            className="fld-input"
+          />
+        </div>
+        <div>
+          <label className="fld-label" htmlFor="eq-vendor">업체</label>
+          <input
+            id="eq-vendor"
+            name="vendor"
+            defaultValue={editing?.vendor ?? orders[0]?.vendor ?? ''}
+            placeholder="예: 길흥주방"
+            className="fld-input"
+          />
+        </div>
+        <div>
+          <label className="fld-label" htmlFor="eq-date">견적 작성일</label>
+          <input
+            id="eq-date"
+            name="quote_date"
+            type="date"
+            defaultValue={editing?.quote_date ?? ''}
+            className="fld-input"
+          />
+        </div>
+        <div>
+          <label className="fld-label" htmlFor="eq-open">오픈 매장 (선택)</label>
+          <select
+            id="eq-open"
+            name="open_checklist_id"
+            defaultValue={editing?.open_checklist_id ?? ''}
+            className="fld-input"
+          >
+            <option value="">연결 안 함</option>
+            {openLists.map((o) => (
+              <option key={o.id} value={o.id}>{o.title}</option>
+            ))}
+          </select>
+        </div>
+
+        {editing ? (
+          <div>
+            <label className="fld-label" htmlFor="eq-status">진행 상태</label>
+            <select id="eq-status" name="status" defaultValue={editing.status} className="fld-input">
+              {EQUIP_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div>
+            <label className="fld-label" htmlFor="eq-seed">시작 방식</label>
+            <select id="eq-seed" name="seed" className="fld-input" defaultValue={orders[0]?.id ?? 'blank'}>
+              {orders.map((o) => (
+                <option key={o.id} value={o.id}>{o.title} 복사해서 시작</option>
+              ))}
+              <option value="blank">빈 발주서로 시작</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3.5">
+        <label className="fld-label" htmlFor="eq-memo">메모</label>
+        <textarea
+          id="eq-memo"
+          name="memo"
+          rows={2}
+          defaultValue={editing?.memo ?? ''}
+          placeholder="담당자 연락처 · 납품일 · 결제 조건 등"
+          className="fld-input leading-relaxed"
+        />
+      </div>
+
+      {state && !state.ok && (
+        <div className="mt-3 text-[13px] font-semibold text-bad" role="status">{state.message}</div>
+      )}
+
+      <div className="btn-row">
+        <button type="button" className="btn-ghost" onClick={onDone}>취소</button>
+        <SubmitButton label={editing ? '수정 저장' : '발주서 만들기'} />
+      </div>
+    </form>
+  )
+}
+
+/** 품목 한 줄의 입력칸들 (추가·수정 공용) */
+function ItemFields({ item, section }: { item?: EquipItem; section: string }) {
+  return (
+    <div className="grid grid-cols-2 gap-2 shell:grid-cols-[110px_1.6fr_1.2fr_80px_110px_1fr]">
+      <select name="section" defaultValue={item?.section ?? section} aria-label="구분" className="fld-input !py-2 !text-[13px]">
+        {Array.from(new Set([...EQUIP_SECTIONS, section, item?.section ?? ''])).filter(Boolean).map((s) => (
+          <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+      <input name="name" required defaultValue={item?.name} placeholder="품명" className="fld-input !py-2 !text-[13px]" />
+      <input name="spec" defaultValue={item?.spec} placeholder="규격" className="fld-input !py-2 !text-[13px]" />
+      <input name="qty" type="number" min={0} step="any" inputMode="decimal" defaultValue={item ? Number(item.qty) : ''} placeholder="수량" className="fld-input !py-2 !text-[13px]" />
+      <input name="unit_price" type="number" min={0} inputMode="numeric" defaultValue={item ? Number(item.unit_price) : ''} placeholder="단가" className="fld-input !py-2 !text-[13px]" />
+      <input name="note" defaultValue={item?.note} placeholder="비고" className="fld-input !py-2 !text-[13px]" />
+    </div>
+  )
+}
+
+/** 견적서 모양 그대로 인쇄 (화면에는 안 보임) */
+function PrintSheet({ order, items }: { order: EquipOrder; items: EquipItem[] }) {
+  const t = orderTotals(items)
+  let no = 0
+  return (
+    <div id="equip-print-area" className="fixed -left-[10000px] top-0 w-[800px] bg-white text-black">
+      <h1 className="mb-1 text-center text-[26px] font-extrabold tracking-[0.6em]">발주서</h1>
+      <div className="mb-3 flex justify-between text-[12px]">
+        <div>
+          <div className="text-[15px] font-bold">{order.title}</div>
+          <div>작성일 : {order.quote_date ?? '-'}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[15px] font-bold">{order.vendor}</div>
+          {order.memo && <div className="max-w-[360px] whitespace-pre-wrap">{order.memo}</div>}
+        </div>
+      </div>
+      <table className="w-full border-collapse text-[11.5px]">
+        <thead>
+          <tr>
+            <td colSpan={7} className="border border-black px-2 py-1.5 text-[13px] font-bold">
+              合計金 &nbsp; {wonInKorean(t.total)} 원整 <span className="float-right">{won(t.total)}</span>
+            </td>
+          </tr>
+          <tr className="bg-[#f2f2f2]">
+            {['NO', '품명', '규격', '수량', '단가', '금액', '비고'].map((h) => (
+              <th key={h} className="border border-black px-1.5 py-1">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {groupBySection(items).map(([section, list]) => (
+            <FragmentRows key={section} section={section}>
+              {list.map((it) => {
+                no++
+                return (
+                  <tr key={it.id} className="break-inside-avoid">
+                    <td className="border border-black px-1 py-[3px] text-center">{no}</td>
+                    <td className="border border-black px-1.5 py-[3px] text-center">{it.name}</td>
+                    <td className="border border-black px-1.5 py-[3px] text-center">{it.spec}</td>
+                    <td className="border border-black px-1.5 py-[3px] text-center">{qtyText(it.qty)}</td>
+                    <td className="border border-black px-1.5 py-[3px] text-right">{num(it.unit_price)}</td>
+                    <td className="border border-black px-1.5 py-[3px] text-right">{num(lineAmount(it))}</td>
+                    <td className="border border-black px-1.5 py-[3px] text-center">{it.note}</td>
+                  </tr>
+                )
+              })}
+            </FragmentRows>
+          ))}
+          {[
+            ['합 계', t.supply],
+            ['부 가 세', t.vat],
+            ['총 계', t.total],
+          ].map(([label, v]) => (
+            <tr key={label as string} className="break-inside-avoid font-bold">
+              <td colSpan={5} className="border border-black px-2 py-1 text-center">{label}</td>
+              <td colSpan={2} className="border border-black px-2 py-1 text-right">{num(v as number)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-2 text-[11px]">* 단가는 부가세 별도 금액입니다.</p>
+    </div>
+  )
+}
+
+function FragmentRows({ section, children }: { section: string; children: React.ReactNode }) {
+  return (
+    <>
+      <tr className="break-inside-avoid">
+        <td className="border border-black" />
+        <td colSpan={6} className="border border-black px-2 py-[3px] font-bold">{section}</td>
+      </tr>
+      {children}
+    </>
+  )
+}
+
+/**
+ * 주방 집기 발주리스트.
+ * 발주서를 골라 품목을 보고 고친다. [엑셀 업로드·비교]로 업체가 보낸
+ * 새 견적을 지난 발주와 비교한 뒤 새 발주서로 저장한다.
+ */
+export function EquipOrders({
+  orders,
+  items,
+  openLists,
+  isOwner,
+}: {
+  orders: EquipOrder[]
+  items: EquipItem[]
+  openLists: OpenList[]
+  isOwner: boolean
+}) {
+  const [selected, setSelected] = useState<string | null>(orders[0]?.id ?? null)
+  const [mode, setMode] = useState<'view' | 'create' | 'edit' | 'import'>('view')
+  const [editingItem, setEditingItem] = useState<string | null>(null)
+  const [removed, setRemoved] = useState<Set<string>>(new Set())
+  const [query, setQuery] = useState('')
+  const [, startTransition] = useTransition()
+
+  const current = orders.find((o) => o.id === selected) ?? orders[0] ?? null
+
+  const itemsOf = (orderId: string) =>
+    items.filter((i) => i.order_id === orderId && !removed.has(i.id))
+
+  const rows = useMemo(
+    () => (current ? itemsOf(current.id) : []),
+    [items, current?.id, removed]
+  )
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter((r) => `${r.name} ${r.spec} ${r.note}`.toLowerCase().includes(q))
+  }, [rows, query])
+
+  const totals = orderTotals(rows)
+  const openTitle = openLists.find((o) => o.id === current?.open_checklist_id)?.title
+
+  function removeItem(id: string) {
+    if (!isOwner) return
+    setRemoved((s) => new Set(s).add(id))
+    startTransition(async () => {
+      const fd = new FormData()
+      fd.set('id', id)
+      await deleteEquipItem(fd)
+    })
+  }
+
+  function submitItem(e: React.FormEvent<HTMLFormElement>, after: () => void, action: (fd: FormData) => Promise<void>) {
+    e.preventDefault()
+    const form = e.currentTarget
+    const fd = new FormData(form)
+    after()
+    startTransition(async () => {
+      await action(fd)
+    })
+  }
+
+  async function downloadExcel() {
+    if (!current) return
+    const XLSX = await import('xlsx')
+    const ws = XLSX.utils.aoa_to_sheet(toSheetRows(rows))
+    ws['!cols'] = [{ wch: 5 }, { wch: 10 }, { wch: 24 }, { wch: 22 }, { wch: 7 }, { wch: 10 }, { wch: 12 }, { wch: 12 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '발주리스트')
+    XLSX.writeFile(wb, `${current.title || '발주리스트'}.xlsx`)
+  }
+
+  // ── 폼 / 업로드 화면 ───────────────────────────
+  if (mode === 'create' || (mode === 'edit' && current)) {
+    return (
+      <OrderForm
+        editing={mode === 'edit' ? current : null}
+        orders={orders}
+        openLists={openLists}
+        onDone={() => setMode('view')}
+        onCreated={(id) => setSelected(id)}
+      />
+    )
+  }
+  if (mode === 'import') {
+    return (
+      <EquipImport
+        orders={orders}
+        items={items}
+        openLists={openLists}
+        defaultBaseId={current?.id ?? null}
+        onCancel={() => setMode('view')}
+        onSaved={(id) => {
+          setSelected(id)
+          setMode('view')
+        }}
+      />
+    )
+  }
+
+  const toolbar = isOwner && (
+    <div className="flex flex-wrap gap-1.5">
+      <button type="button" onClick={() => setMode('create')} className="btn-ghost !px-3 !py-1.5 !text-[13px]">
+        + 새 발주서
+      </button>
+      <button type="button" onClick={() => setMode('import')} className="btn !px-3 !py-1.5 !text-[13px]">
+        📥 엑셀 업로드 · 비교
+      </button>
+    </div>
+  )
+
+  if (!current) {
+    return (
+      <div className="card text-center">
+        <p className="py-6 text-[13.5px] text-muted">
+          아직 발주서가 없습니다.
+          <br />
+          업체 견적 엑셀을 올리거나 직접 만들어 시작하세요.
+        </p>
+        <div className="flex justify-center">{toolbar}</div>
+      </div>
+    )
+  }
+
+  const status = equipStatusMeta(current.status)
+  let no = 0
+
+  return (
+    <>
+      {/* ── 발주서 선택 ───────────────────────────── */}
+      <div className="mb-4 flex flex-wrap items-center gap-1.5">
+        {orders.map((o) => {
+          const active = o.id === current.id
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => {
+                setSelected(o.id)
+                setEditingItem(null)
+              }}
+              className={`rounded-[10px] border px-3 py-1.5 text-[13px] font-bold transition ${
+                active
+                  ? 'border-brand bg-brand text-white'
+                  : 'border-line bg-white text-ink-2 hover:border-brand/50 hover:text-ink'
+              }`}
+            >
+              {o.title}
+            </button>
+          )
+        })}
+        <div className="ml-auto">{toolbar}</div>
+      </div>
+
+      {/* ── 요약 ───────────────────────────────────── */}
+      <div className="card">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-[17px] font-extrabold">{current.title}</h3>
+              <span className={`pill ${status.pill}`}>{status.label}</span>
+            </div>
+            <p className="mt-1 text-[12.5px] text-muted">
+              {current.vendor || '업체 미정'} · 작성일 {current.quote_date ?? '미정'}
+              {openTitle && ` · 🏗️ ${openTitle}`}
+            </p>
+            {current.memo && (
+              <p className="mt-1 whitespace-pre-wrap text-[12px] text-muted">{current.memo}</p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-1">
+            <button type="button" onClick={downloadExcel} className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">
+              엑셀 받기
+            </button>
+            <button type="button" onClick={() => window.print()} className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">
+              인쇄 · PDF
+            </button>
+            {isOwner && (
+              <>
+                <button type="button" onClick={() => setMode('edit')} className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">
+                  수정
+                </button>
+                <form
+                  action={deleteEquipOrder}
+                  onSubmit={(e) => {
+                    if (!confirm(`"${current.title}" 발주서를 삭제할까요? 품목도 모두 지워집니다.`)) e.preventDefault()
+                  }}
+                >
+                  <input type="hidden" name="id" value={current.id} />
+                  <button type="submit" className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad">
+                    삭제
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-3.5 grid grid-cols-2 gap-2.5 text-center shell:grid-cols-4">
+          <div>
+            <div className="text-[11.5px] text-muted">품목</div>
+            <div className="text-[15px] font-extrabold tabular-nums">{num(rows.length)}개</div>
+          </div>
+          <div>
+            <div className="text-[11.5px] text-muted">합계 (공급가)</div>
+            <div className="text-[15px] font-extrabold tabular-nums">{won(totals.supply)}</div>
+          </div>
+          <div>
+            <div className="text-[11.5px] text-muted">부가세</div>
+            <div className="text-[15px] font-extrabold tabular-nums">{won(totals.vat)}</div>
+          </div>
+          <div>
+            <div className="text-[11.5px] text-muted">총계</div>
+            <div className="text-[15px] font-extrabold tabular-nums text-brand-deep">{won(totals.total)}</div>
+          </div>
+        </div>
+        <p className="mt-2 text-right text-[11.5px] text-muted">
+          {wonInKorean(totals.total)} 원整
+        </p>
+      </div>
+
+      {/* ── 검색 ───────────────────────────────────── */}
+      {rows.length > 8 && (
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="품명 · 규격 검색"
+          aria-label="품목 검색"
+          className="fld-input mt-4"
+        />
+      )}
+
+      {/* ── 섹션별 품목 표 ─────────────────────────── */}
+      {groupBySection(shown).map(([section, list]) => {
+        const sub = orderTotals(list)
+        return (
+          <div key={section} className="card mt-4">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <h3 className="text-[15.5px] font-bold">{section}</h3>
+              <span className="text-[12px] text-muted">{list.length}개</span>
+              <span className="ml-auto text-[13px] font-bold tabular-nums">{won(sub.supply)}</span>
+            </div>
+
+            <div className="-mx-1 overflow-x-auto">
+              <table className="tbl min-w-[640px]">
+                <thead>
+                  <tr>
+                    <th className="w-[42px] text-center">NO</th>
+                    <th>품명</th>
+                    <th>규격</th>
+                    <th className="text-right">수량</th>
+                    <th className="text-right">단가</th>
+                    <th className="text-right">금액</th>
+                    <th>비고</th>
+                    {isOwner && <th className="w-[84px]" />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((it) => {
+                    no++
+                    if (editingItem === it.id) {
+                      return (
+                        <tr key={it.id}>
+                          <td colSpan={isOwner ? 8 : 7}>
+                            <form
+                              onSubmit={(e) => submitItem(e, () => setEditingItem(null), saveEquipItem)}
+                              className="rounded-[12px] border border-brand/40 bg-brand/[.03] p-2.5"
+                            >
+                              <input type="hidden" name="id" value={it.id} />
+                              <ItemFields item={it} section={section} />
+                              <div className="mt-2 flex justify-end gap-2">
+                                <button type="button" onClick={() => setEditingItem(null)} className="btn-ghost !py-1.5 !text-[12.5px]">취소</button>
+                                <button type="submit" className="btn !py-1.5 !text-[12.5px]">수정 저장</button>
+                              </div>
+                            </form>
+                          </td>
+                        </tr>
+                      )
+                    }
+                    return (
+                      <tr key={it.id}>
+                        <td className="text-center text-muted tabular-nums">{no}</td>
+                        <td className="font-semibold">{it.name}</td>
+                        <td className="text-ink-2">{it.spec}</td>
+                        <td className="text-right tabular-nums">{qtyText(it.qty)}</td>
+                        <td className="text-right tabular-nums">{num(it.unit_price)}</td>
+                        <td className="text-right font-semibold tabular-nums">{num(lineAmount(it))}</td>
+                        <td className="text-[12px] text-muted">{it.note}</td>
+                        {isOwner && (
+                          <td className="whitespace-nowrap text-right">
+                            <button type="button" onClick={() => setEditingItem(it.id)} className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">수정</button>
+                            <button type="button" onClick={() => removeItem(it.id)} className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad">삭제</button>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {isOwner && !query && (
+              <form
+                onSubmit={(e) => {
+                  const form = e.currentTarget
+                  submitItem(e, () => form.reset(), addEquipItem)
+                }}
+                className="mt-3 border-t border-line-soft pt-3"
+              >
+                <input type="hidden" name="order_id" value={current.id} />
+                <ItemFields section={section} />
+                <div className="mt-2 flex justify-end">
+                  <button type="submit" className="btn-ghost !px-3 !py-1.5 !text-[13px]">+ {section} 품목 추가</button>
+                </div>
+              </form>
+            )}
+          </div>
+        )
+      })}
+
+      {rows.length === 0 && isOwner && (
+        <div className="card mt-4">
+          <h3 className="card-title">첫 품목 추가</h3>
+          <form onSubmit={(e) => { const f = e.currentTarget; submitItem(e, () => f.reset(), addEquipItem) }}>
+            <input type="hidden" name="order_id" value={current.id} />
+            <ItemFields section={EQUIP_SECTIONS[0]} />
+            <div className="mt-2 flex justify-end">
+              <button type="submit" className="btn !py-1.5 !text-[13px]">추가</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <PrintSheet order={current} items={rows} />
+    </>
+  )
+}

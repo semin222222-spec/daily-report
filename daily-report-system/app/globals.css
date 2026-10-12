@@ -186,10 +186,13 @@
     visibility: hidden;
   }
   #recipe-print-area,
-  #recipe-print-area * {
+  #recipe-print-area *,
+  #equip-print-area,
+  #equip-print-area * {
     visibility: visible;
   }
-  #recipe-print-area {
+  #recipe-print-area,
+  #equip-print-area {
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;
