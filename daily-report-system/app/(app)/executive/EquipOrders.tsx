@@ -31,6 +31,7 @@ import {
   type EquipResult,
 } from './equip-actions'
 import { EquipImport } from './EquipImport'
+import { LinkEditor } from './LinkEditor'
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus()
@@ -314,7 +315,7 @@ export function EquipOrders({
     [allOrders, kind]
   )
   const [selected, setSelected] = useState<string | null>(orders[0]?.id ?? null)
-  const [mode, setMode] = useState<'view' | 'create' | 'edit' | 'import'>('view')
+  const [mode, setMode] = useState<'view' | 'create' | 'edit' | 'import' | 'links'>('view')
   const [editingItem, setEditingItem] = useState<string | null>(null)
   const [addingSection, setAddingSection] = useState<string | null>(null)
   const [removed, setRemoved] = useState<Set<string>>(new Set())
@@ -436,6 +437,16 @@ export function EquipOrders({
         openLists={openLists}
         onDone={() => setMode('view')}
         onCreated={(id) => setSelected(id)}
+      />
+    )
+  }
+  if (mode === 'links' && current) {
+    return (
+      <LinkEditor
+        key={current.id}
+        title={current.title}
+        items={groupBySection(rows).flatMap(([, list]) => list)}
+        onClose={() => setMode('view')}
       />
     )
   }
@@ -596,6 +607,11 @@ export function EquipOrders({
                 누르면 쿠팡 상품(또는 검색)이 열립니다
               </span>
               <span className="flex gap-1">
+                {isOwner && (
+                  <button type="button" onClick={() => setMode('links')} className="rounded-md px-1.5 py-0.5 font-semibold text-brand-deep hover:bg-brand/10">
+                    🔗 링크 한꺼번에 입력 ({rows.filter((r) => r.link).length}/{rows.length})
+                  </button>
+                )}
                 <button type="button" onClick={copyList} className="rounded-md px-1.5 py-0.5 font-semibold hover:bg-line-soft hover:text-ink">
                   {copied ? '복사됨 ✓' : '남은 목록 복사'}
                 </button>

@@ -229,6 +229,23 @@ export async function toggleEquipItem(formData: FormData): Promise<void> {
   revalidatePath('/executive')
 }
 
+/**
+ * 구매 링크만 저장 — 「링크 한꺼번에 입력」 화면에서 칸마다 붙여넣을 때 쓴다.
+ * 쿠팡 앱 공유 문구("상품명 https://link.coupang.com/...")를 통째로 넣어도 주소만 뽑는다.
+ * 빈 값이면 링크를 지운다.
+ */
+export async function saveEquipLink(id: string, raw: string): Promise<{ ok: boolean; link: string }> {
+  const { supabase } = await assertOwner()
+  if (!id) return { ok: false, link: '' }
+  const found = String(raw ?? '').match(/https?:\/\/[^\s"'<>]+/i)?.[0] ?? ''
+  const link = cleanLink(found)
+  if (String(raw ?? '').trim() && !link) return { ok: false, link: '' }
+  const { error } = await supabase.from('equip_order_items').update({ link }).eq('id', id)
+  if (error) return { ok: false, link: '' }
+  revalidatePath('/executive')
+  return { ok: true, link }
+}
+
 /** 이 발주서의 주문함 체크를 모두 지운다 (다음 매장 오픈 때 다시 쓰려고) */
 export async function resetEquipChecks(formData: FormData): Promise<void> {
   const { supabase } = await assertOwner()
