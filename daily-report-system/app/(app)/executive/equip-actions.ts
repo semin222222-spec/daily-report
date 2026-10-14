@@ -24,6 +24,12 @@ async function assertOwner() {
   return { supabase, userId: session.user.id }
 }
 
+/** 주방 집기는 임원전용, 쿠팡 발주는 점주센터에서 보므로 둘 다 새로 그린다 */
+function refresh() {
+  revalidatePath('/executive')
+  revalidatePath('/owner-center/coupang')
+}
+
 export interface EquipResult {
   ok: boolean
   message: string
@@ -119,7 +125,7 @@ export async function createEquipOrder(
     }
   }
 
-  revalidatePath('/executive')
+  refresh()
   return { ok: true, message: '발주서를 만들었습니다.', id: created.id }
 }
 
@@ -162,7 +168,7 @@ export async function importEquipOrder(input: {
     return { ok: false, message: `품목 저장 실패: ${itemErr.message}` }
   }
 
-  revalidatePath('/executive')
+  refresh()
   return { ok: true, message: `${lines.length}개 품목으로 발주서를 만들었습니다.`, id: created.id }
 }
 
@@ -187,7 +193,7 @@ export async function saveEquipOrder(
     .eq('id', id)
   if (error) return { ok: false, message: `저장 실패: ${error.message}` }
 
-  revalidatePath('/executive')
+  refresh()
   return { ok: true, message: '수정되었습니다.' }
 }
 
@@ -197,7 +203,7 @@ export async function deleteEquipOrder(formData: FormData): Promise<void> {
   if (!id) return
   // 품목은 on delete cascade
   await supabase.from('equip_orders').delete().eq('id', id)
-  revalidatePath('/executive')
+  refresh()
 }
 
 function readItem(formData: FormData): Omit<ReturnType<typeof cleanLine>, 'sort_order'> {
@@ -226,7 +232,7 @@ export async function toggleEquipItem(formData: FormData): Promise<void> {
     .from('equip_order_items')
     .update({ checked: String(formData.get('checked') ?? '') === 'true' })
     .eq('id', id)
-  revalidatePath('/executive')
+  refresh()
 }
 
 /**
@@ -242,7 +248,7 @@ export async function saveEquipLink(id: string, raw: string): Promise<{ ok: bool
   if (String(raw ?? '').trim() && !link) return { ok: false, link: '' }
   const { error } = await supabase.from('equip_order_items').update({ link }).eq('id', id)
   if (error) return { ok: false, link: '' }
-  revalidatePath('/executive')
+  refresh()
   return { ok: true, link }
 }
 
@@ -252,7 +258,7 @@ export async function resetEquipChecks(formData: FormData): Promise<void> {
   const orderId = String(formData.get('order_id') ?? '')
   if (!orderId) return
   await supabase.from('equip_order_items').update({ checked: false }).eq('order_id', orderId)
-  revalidatePath('/executive')
+  refresh()
 }
 
 export async function addEquipItem(formData: FormData): Promise<void> {
@@ -274,7 +280,7 @@ export async function addEquipItem(formData: FormData): Promise<void> {
     ...fields,
     sort_order: (last?.sort_order ?? 0) + 1,
   })
-  revalidatePath('/executive')
+  refresh()
 }
 
 export async function saveEquipItem(formData: FormData): Promise<void> {
@@ -283,7 +289,7 @@ export async function saveEquipItem(formData: FormData): Promise<void> {
   const fields = readItem(formData)
   if (!id || !fields.name) return
   await supabase.from('equip_order_items').update(fields).eq('id', id)
-  revalidatePath('/executive')
+  refresh()
 }
 
 export async function deleteEquipItem(formData: FormData): Promise<void> {
@@ -291,5 +297,5 @@ export async function deleteEquipItem(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   await supabase.from('equip_order_items').delete().eq('id', id)
-  revalidatePath('/executive')
+  refresh()
 }

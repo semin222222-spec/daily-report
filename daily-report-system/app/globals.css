@@ -188,11 +188,14 @@
   #recipe-print-area,
   #recipe-print-area *,
   #equip-print-area,
-  #equip-print-area * {
+  #equip-print-area *,
+  #setup-print-area,
+  #setup-print-area * {
     visibility: visible;
   }
   #recipe-print-area,
-  #equip-print-area {
+  #equip-print-area,
+  #setup-print-area {
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;

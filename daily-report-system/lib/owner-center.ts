@@ -9,7 +9,7 @@
 /** 점주센터 PIN 통과 여부를 담는 쿠키 이름 */
 export const OC_COOKIE = 'oc_ok'
 
-export type FolderKind = 'order' | 'files' | 'recipe'
+export type FolderKind = 'order' | 'files' | 'recipe' | 'coupang' | 'setup'
 
 export interface OwnerFolder {
   slug: string
@@ -83,6 +83,22 @@ export const OWNER_FOLDERS: OwnerFolder[] = [
     desc: '신규 직원 교육·위생 자료',
     icon: '🎓',
     kind: 'files',
+  },
+  {
+    slug: 'coupang',
+    no: '06',
+    title: '쿠팡 발주',
+    desc: '오픈 때 쿠팡에서 사는 소모품·기물 리스트 (링크로 바로 담기)',
+    icon: '🛒',
+    kind: 'coupang',
+  },
+  {
+    slug: 'setup',
+    no: '07',
+    title: '가맹점 셋팅 체크리스트',
+    desc: '인테리어·설비부터 발주·최종 점검까지 매장별 셋팅 체크',
+    icon: '✅',
+    kind: 'setup',
   },
 ]
 

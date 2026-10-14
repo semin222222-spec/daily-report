@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import { num, won } from '@/lib/format'
 import {
@@ -342,14 +342,41 @@ export function EquipOrders({
   const totals = orderTotals(rows, vatIn)
   const openTitle = openLists.find((o) => o.id === current?.open_checklist_id)?.title
 
-  // 주문함 체크 — 화면을 먼저 바꾸고 저장이 뒤따른다
-  const isChecked = (it: EquipItem) => checkMap[it.id] ?? it.checked
+  // 주문함 체크 — 화면을 먼저 바꾸고 저장이 뒤따른다.
+  // 오너: DB에 저장. 점주(점주센터): 매장마다 따로 담으므로 이 기기(브라우저)에만 저장하고
+  // 오너가 DB에 남긴 체크는 보지 않는다(처음부터 빈 체크로 시작).
+  const localKey = current ? `equip-checks:${current.id}` : ''
+  useEffect(() => {
+    if (isOwner || !localKey) return
+    try {
+      setCheckMap(JSON.parse(localStorage.getItem(localKey) ?? '{}'))
+    } catch {
+      setCheckMap({})
+    }
+  }, [isOwner, localKey])
+
+  const isChecked = (it: EquipItem) => checkMap[it.id] ?? (isOwner ? it.checked : false)
   const checkedRows = rows.filter(isChecked)
   const checkedTotal = orderTotals(checkedRows, vatIn).total
 
+  function saveLocal(map: Record<string, boolean>) {
+    try {
+      localStorage.setItem(localKey, JSON.stringify(map))
+    } catch {
+      // 사생활 보호 모드 등 저장소를 못 쓰면 화면에서만 유지
+    }
+  }
+
   function toggleCheck(it: EquipItem) {
-    if (!isOwner) return
     const next = !isChecked(it)
+    if (!isOwner) {
+      setCheckMap((m) => {
+        const map = { ...m, [it.id]: next }
+        saveLocal(map)
+        return map
+      })
+      return
+    }
     setCheckMap((m) => ({ ...m, [it.id]: next }))
     startTransition(async () => {
       const fd = new FormData()
@@ -410,7 +437,12 @@ export function EquipOrders({
 
   function resetChecks() {
     if (!current || !confirm('주문함 체크를 모두 지울까요?')) return
-    setCheckMap(Object.fromEntries(rows.map((r) => [r.id, false])))
+    const cleared = Object.fromEntries(rows.map((r) => [r.id, false]))
+    setCheckMap(cleared)
+    if (!isOwner) {
+      saveLocal(cleared)
+      return
+    }
     startTransition(async () => {
       const fd = new FormData()
       fd.set('order_id', current.id)
@@ -641,7 +673,7 @@ export function EquipOrders({
                 <button type="button" onClick={copyList} className="rounded-md px-1.5 py-0.5 font-semibold hover:bg-line-soft hover:text-ink">
                   {copied ? '복사됨 ✓' : '남은 목록 복사'}
                 </button>
-                {isOwner && checkedRows.length > 0 && (
+                {checkedRows.length > 0 && (
                   <button type="button" onClick={resetChecks} className="rounded-md px-1.5 py-0.5 font-semibold hover:bg-line-soft hover:text-ink">
                     체크 모두 지우기
                   </button>
@@ -650,7 +682,7 @@ export function EquipOrders({
             </div>
 
             {/* 탭 한꺼번에 열기 — PC 에서 링크 넣어 둔 품목을 묶음으로 띄운다 */}
-            {isOwner && linkedLeft.length > 0 && (
+            {linkedLeft.length > 0 && (
               // 휴대폰에선 탭 여러 개가 불편해 숨긴다 — 「차례로 담기」를 쓴다
               <div className="mt-3 hidden flex-wrap items-center gap-2 rounded-[12px] border border-line bg-page px-3 py-2.5 shell:flex">
                 <div className="min-w-0 flex-1 text-[12.5px]">
@@ -674,7 +706,7 @@ export function EquipOrders({
             )}
 
             {/* 차례로 담기 — 버튼 하나로 다음 품목 쿠팡 창 열기 + 체크 */}
-            {isOwner && (
+            {(
               nextItem ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[12px] border border-brand/30 bg-brand/[.04] px-3 py-2.5">
                   {/* 휴대폰에선 품목 정보 한 줄, 버튼 한 줄 */}
@@ -765,7 +797,6 @@ export function EquipOrders({
                     {vatIn ? (
                       <button
                         type="button"
-                        disabled={!isOwner}
                         onClick={() => toggleCheck(it)}
                         aria-label={done ? '주문 취소' : '주문함'}
                         className="-m-1.5 grid h-9 w-9 shrink-0 place-items-center disabled:opacity-50"
@@ -868,7 +899,6 @@ export function EquipOrders({
                           {vatIn ? (
                             <button
                               type="button"
-                              disabled={!isOwner}
                               onClick={() => toggleCheck(it)}
                               aria-label={done ? '주문 취소' : '주문함'}
                               className={`mx-auto grid h-[20px] w-[20px] place-items-center rounded border-2 text-[11px] font-bold transition disabled:opacity-50 ${
