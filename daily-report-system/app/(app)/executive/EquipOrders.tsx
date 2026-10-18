@@ -12,6 +12,7 @@ import {
   lineAmount,
   orderKind,
   orderTotals,
+  specWithBrand,
   toSheetRows,
   wonInKorean,
   type EquipItem,
@@ -187,7 +188,7 @@ function OrderForm({
 function ItemFields({ item, section }: { item?: EquipItem; section: string }) {
   return (
     // 큰 화면에선 섹션 카드가 반쪽 폭이라 3칸 × 2줄로 접는다
-    <div className="grid grid-cols-2 gap-2 shell:grid-cols-[110px_1.6fr_1.2fr_80px_110px_1fr] xl:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2 shell:grid-cols-[110px_1.6fr_1.1fr_1fr_80px_110px_1fr] xl:grid-cols-3">
       <select name="section" defaultValue={item?.section ?? section} aria-label="구분" className="fld-input !py-2 !text-[13px]">
         {Array.from(new Set([...EQUIP_SECTIONS, section, item?.section ?? ''])).filter(Boolean).map((s) => (
           <option key={s} value={s}>{s}</option>
@@ -195,6 +196,7 @@ function ItemFields({ item, section }: { item?: EquipItem; section: string }) {
       </select>
       <input name="name" required defaultValue={item?.name} placeholder="품명" className="fld-input !py-2 !text-[13px]" />
       <input name="spec" defaultValue={item?.spec} placeholder="규격" className="fld-input !py-2 !text-[13px]" />
+      <input name="brand" defaultValue={item?.brand} placeholder="브랜드" className="fld-input !py-2 !text-[13px]" />
       <input name="qty" type="number" min={0} step="any" inputMode="decimal" defaultValue={item ? Number(item.qty) : ''} placeholder="수량" className="fld-input !py-2 !text-[13px]" />
       <input name="unit_price" type="number" min={0} inputMode="numeric" defaultValue={item ? Number(item.unit_price) : ''} placeholder="단가" className="fld-input !py-2 !text-[13px]" />
       <input name="note" defaultValue={item?.note} placeholder="비고" className="fld-input !py-2 !text-[13px]" />
@@ -203,7 +205,7 @@ function ItemFields({ item, section }: { item?: EquipItem; section: string }) {
         type="url"
         defaultValue={item?.link}
         placeholder="구매 링크 (쿠팡 상품 주소, 비우면 품명으로 검색)"
-        className="fld-input col-span-2 !py-2 !text-[13px] shell:col-span-6 xl:col-span-3"
+        className="fld-input col-span-2 !py-2 !text-[13px] shell:col-span-7 xl:col-span-3"
       />
     </div>
   )
@@ -248,7 +250,7 @@ function PrintSheet({ order, items }: { order: EquipOrder; items: EquipItem[] })
                   <tr key={it.id} className="break-inside-avoid">
                     <td className="border border-black px-1 py-[3px] text-center">{no}</td>
                     <td className="border border-black px-1.5 py-[3px] text-center">{it.name}</td>
-                    <td className="border border-black px-1.5 py-[3px] text-center">{it.spec}</td>
+                    <td className="border border-black px-1.5 py-[3px] text-center">{specWithBrand(it)}</td>
                     <td className="border border-black px-1.5 py-[3px] text-center">{qtyText(it.qty)}</td>
                     <td className="border border-black px-1.5 py-[3px] text-right">{num(it.unit_price)}</td>
                     <td className="border border-black px-1.5 py-[3px] text-right">{num(lineAmount(it))}</td>
@@ -424,7 +426,7 @@ export function EquipOrders({
   async function copyList() {
     const text = ordered
       .filter((it) => !isChecked(it))
-      .map((it) => `- ${it.name}${it.spec ? ` / ${it.spec}` : ''} × ${qtyText(it.qty)}`)
+      .map((it) => `- ${it.name}${it.spec || it.brand ? ` / ${specWithBrand(it)}` : ''} × ${qtyText(it.qty)}`)
       .join('\n')
     try {
       await navigator.clipboard.writeText(`[${current?.title ?? '발주'}] 남은 품목\n${text}`)
@@ -474,10 +476,10 @@ export function EquipOrders({
     if (!current) return
     const XLSX = await import('xlsx')
     const ws = XLSX.utils.aoa_to_sheet(toSheetRows(rows, vatIn))
-    ws['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 36 }, { wch: 22 }, { wch: 7 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 40 }]
-    // 링크 칸(I열)을 눌러서 열 수 있게 하이퍼링크로
+    ws['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 36 }, { wch: 22 }, { wch: 12 }, { wch: 7 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 40 }]
+    // 링크 칸(J열)을 눌러서 열 수 있게 하이퍼링크로
     rows.forEach((_, i) => {
-      const cell = ws[XLSX.utils.encode_cell({ r: i + 1, c: 8 })]
+      const cell = ws[XLSX.utils.encode_cell({ r: i + 1, c: 9 })]
       if (cell && typeof cell.v === 'string' && cell.v) cell.l = { Target: cell.v }
     })
     const wb = XLSX.utils.book_new()
@@ -819,9 +821,9 @@ export function EquipOrders({
                       <div className={`text-[14px] font-semibold leading-snug ${done ? 'line-through' : ''}`}>
                         {it.name}
                       </div>
-                      {(it.spec || it.note) && (
+                      {(it.spec || it.brand || it.note) && (
                         <div className="mt-0.5 text-[12px] text-muted">
-                          {[it.spec, it.note].filter(Boolean).join(' · ')}
+                          {[it.spec, it.brand, it.note].filter(Boolean).join(' · ')}
                         </div>
                       )}
                       <div className="mt-0.5 flex items-center gap-1 text-[12.5px]">
@@ -927,7 +929,12 @@ export function EquipOrders({
                           {/* 비고는 칸을 따로 두지 않고 품명 아래에 작게 */}
                           {it.note && <div className="text-[11px] font-normal text-muted">{it.note}</div>}
                         </td>
-                        <td className="!text-left text-[12px] text-ink-2">{it.spec}</td>
+                        <td className="!text-left text-[12px] text-ink-2">
+                          {it.spec}
+                          {it.brand && (
+                            <span className="ml-1 inline-block rounded bg-line-soft px-1.5 py-px text-[11px] font-semibold text-ink-2">{it.brand}</span>
+                          )}
+                        </td>
                         <td className="whitespace-nowrap tabular-nums">{qtyText(it.qty)}</td>
                         <td className="whitespace-nowrap tabular-nums">{num(it.unit_price)}</td>
                         <td className="whitespace-nowrap font-semibold tabular-nums">{num(lineAmount(it))}</td>

@@ -38,6 +38,8 @@ export interface EquipItem {
   qty: number
   unit_price: number
   note: string
+  /** 브랜드·제조사·원산지 (견적서 규격 뒤 괄호) */
+  brand: string
   /** 구매 링크 (쿠팡 상품 주소). 비어 있으면 품명으로 검색 링크를 만든다 */
   link: string
   /** 이번 발주에서 주문(장바구니 담기) 끝냈는지 */
@@ -53,6 +55,7 @@ export interface EquipLine {
   qty: number
   unit_price: number
   note: string
+  brand?: string
   link?: string
 }
 
@@ -169,12 +172,36 @@ const HEADER_KEYS: Record<keyof EquipLine | 'amount' | 'no', RegExp> = {
   amount: /(금액|金額|amount)/i,
   note: /(단위|單位|비고|unit$|메모|note|remark)/i,
   section: /(구분|분류|카테고리|category)/i,
+  brand: /(브랜드|제조사|메이커|brand|maker)/i,
   link: /(링크|주소|url|link)/i,
 }
 
 function clean(v: Cell): string {
   if (v == null) return ''
   return String(v).replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * 규격 끝 괄호를 브랜드로 떼어낸다 — 견적서가 '11"(킹센스)' · '(대관령물산)' 처럼 적는다.
+ * 브랜드 칸이 따로 있으면 그 값을 쓰고 규격은 그대로 둔다.
+ *   '11"(킹센스)'  → spec '11"',  brand '킹센스'
+ *   '(프린스)'     → spec '',     brand '프린스'
+ *   '기미상궁SB500' → 그대로 (괄호 없음)
+ */
+export function splitSpecBrand(spec: string): { spec: string; brand: string } {
+  const m = spec.match(/^(.*?)\s*\(([^()]+)\)\s*$/)
+  if (!m) return { spec, brand: '' }
+  return { spec: m[1].trim(), brand: m[2].trim() }
+}
+
+function brandOf(spec: string, brandCol: string): { spec: string; brand: string } {
+  return brandCol ? { spec, brand: brandCol } : splitSpecBrand(spec)
+}
+
+/** 화면·인쇄용 '규격 (브랜드)' */
+export function specWithBrand(l: { spec: string; brand?: string }): string {
+  if (!l.brand) return l.spec
+  return l.spec ? `${l.spec} (${l.brand})` : `(${l.brand})`
 }
 
 /** '27,000' · '₩27,000' · 27000 → 27000. 숫자가 아니면 NaN */
@@ -270,7 +297,8 @@ export function parseSheets(sheets: Cell[][][]): ParseResult {
       lines.push({
         section: explicitSection || section,
         name,
-        spec,
+        // 규격 끝 괄호는 브랜드로 떼어낸다 (브랜드 칸이 있으면 그 값)
+        ...brandOf(spec, clean(get('brand'))),
         qty: Number.isNaN(qty) ? 0 : qty,
         unit_price: Number.isNaN(price) ? 0 : Math.round(price),
         note: clean(get('note')),
@@ -312,6 +340,8 @@ export interface DiffRow {
   /** 단가가 바뀐 경우 함께 표시 (spec 변경과 겹칠 수 있음) */
   priceChanged: boolean
   qtyChanged: boolean
+  /** 브랜드가 바뀐 경우 (둘 다 적혀 있을 때만) */
+  brandChanged?: boolean
 }
 
 export interface DiffSummary {
@@ -392,14 +422,16 @@ export function compareLines(
     const priceChanged = Number(b.unit_price) !== Number(a.unit_price)
     const qtyChanged = Number(b.qty) !== Number(a.qty)
     const specChanged = normalize(b.spec) !== normalize(a.spec)
+    const brandChanged = !!b.brand && !!a.brand && normalize(b.brand) !== normalize(a.brand)
     if (priceChanged) priceImpact += (a.unit_price - b.unit_price) * a.qty
     rows.push({
-      kind: specChanged ? 'spec' : priceChanged ? 'price' : qtyChanged ? 'qty' : 'same',
+      kind: specChanged || brandChanged ? 'spec' : priceChanged ? 'price' : qtyChanged ? 'qty' : 'same',
       before: b,
       // 엑셀에 링크 칸이 없으면 지난 발주의 링크를 이어받는다
       after: a.link || !b.link ? a : { ...a, link: b.link },
       priceChanged,
       qtyChanged,
+      brandChanged,
     })
   })
 
@@ -428,12 +460,13 @@ export function compareLines(
  * 링크 칸이 있어 엑셀에서 눌러 바로 구매 페이지로 갈 수 있다.
  */
 export function toSheetRows(items: EquipLine[], vatIncluded = false): (string | number)[][] {
-  const head = ['NO', '구분', '품명', '규격', '수량', '단가', '금액', '비고', '링크']
+  const head = ['NO', '구분', '품명', '규격', '브랜드', '수량', '단가', '금액', '비고', '링크']
   const body = items.map((l, i) => [
     i + 1,
     l.section,
     l.name,
     l.spec,
+    l.brand ?? '',
     l.qty,
     l.unit_price,
     lineAmount(l),
@@ -446,8 +479,9 @@ export function toSheetRows(items: EquipLine[], vatIncluded = false): (string | 
     head,
     ...body,
     [],
-    ['', '', vatIncluded ? '공급가 (역산)' : '합계', '', '', '', t.supply, ''],
-    ['', '', '부가세', '', '', '', t.vat, vatIncluded ? '단가에 포함' : ''],
-    ['', '', '총계', '', '', '', t.total, ''],
+    // 금액 칸(8번째)에 맞춘다
+    ['', '', vatIncluded ? '공급가 (역산)' : '합계', '', '', '', '', t.supply, ''],
+    ['', '', '부가세', '', '', '', '', t.vat, vatIncluded ? '단가에 포함' : ''],
+    ['', '', '총계', '', '', '', '', t.total, ''],
   ]
 }

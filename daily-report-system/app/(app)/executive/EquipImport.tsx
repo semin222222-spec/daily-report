@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react'
 import { num, todayKST, won } from '@/lib/format'
 import {
   compareLines,
+  normalize,
   parseSheets,
   type DiffKind,
   type DiffRow,
@@ -19,7 +20,7 @@ const KIND_META: Record<DiffKind, { label: string; pill: string; row: string }> 
   price: { label: '단가 변동', pill: 'bg-warn/15 text-warn', row: 'bg-warn/[.06]' },
   missing: { label: '누락', pill: 'bg-bad/10 text-bad', row: 'bg-bad/[.05]' },
   new: { label: '신규', pill: 'bg-good/15 text-good', row: 'bg-good/[.06]' },
-  spec: { label: '규격 변경', pill: 'bg-brand/10 text-brand-deep', row: 'bg-brand/[.04]' },
+  spec: { label: '규격·브랜드 변경', pill: 'bg-brand/10 text-brand-deep', row: 'bg-brand/[.04]' },
   qty: { label: '수량 변동', pill: 'bg-line-soft text-ink-2', row: '' },
   same: { label: '동일', pill: 'bg-line-soft text-muted', row: '' },
 }
@@ -33,6 +34,7 @@ const toLine = (i: EquipItem): EquipLine => ({
   unit_price: Number(i.unit_price),
   note: i.note,
   link: i.link,
+  brand: i.brand,
 })
 
 function Delta({ before, after }: { before?: number; after?: number }) {
@@ -329,7 +331,7 @@ export function EquipImport({
                           <div className="text-[11px] font-normal text-muted">{cur.section}</div>
                         </td>
                         <td className="text-ink-2">
-                          {r.kind === 'spec' ? (
+                          {r.kind === 'spec' && normalize(r.before!.spec) !== normalize(r.after!.spec) ? (
                             <>
                               <span className="text-muted line-through">{r.before!.spec || '-'}</span>
                               {' → '}
@@ -337,6 +339,16 @@ export function EquipImport({
                             </>
                           ) : (
                             cur.spec
+                          )}
+                          {/* 브랜드 — 바뀌었으면 지난 브랜드에 줄 긋고 함께 */}
+                          {r.brandChanged ? (
+                            <span className="ml-1 inline-block rounded bg-warn/15 px-1.5 py-px text-[11px] font-semibold">
+                              <span className="text-muted line-through">{r.before!.brand}</span> → {r.after!.brand}
+                            </span>
+                          ) : (
+                            cur.brand && (
+                              <span className="ml-1 inline-block rounded bg-line-soft px-1.5 py-px text-[11px] font-semibold">{cur.brand}</span>
+                            )
                           )}
                         </td>
                         <td className="whitespace-nowrap text-right tabular-nums">

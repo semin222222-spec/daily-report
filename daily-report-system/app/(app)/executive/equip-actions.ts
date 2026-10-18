@@ -73,6 +73,7 @@ function cleanLine(l: EquipLine, i: number) {
     qty: Number.isFinite(qty) ? Math.max(qty, 0) : 0,
     unit_price: Number.isFinite(price) ? Math.max(Math.round(price), 0) : 0,
     note: String(l.note || '').trim().slice(0, 120),
+    brand: String(l.brand || '').trim().slice(0, 60),
     link: cleanLink(l.link),
     sort_order: i + 1,
   }
@@ -216,6 +217,7 @@ function readItem(formData: FormData): Omit<ReturnType<typeof cleanLine>, 'sort_
       qty: num('qty'),
       unit_price: num('unit_price'),
       note: String(formData.get('note') ?? ''),
+      brand: String(formData.get('brand') ?? ''),
       link: String(formData.get('link') ?? ''),
     },
     0
