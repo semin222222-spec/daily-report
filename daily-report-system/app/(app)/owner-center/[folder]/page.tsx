@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getSessionContext } from '@/lib/session'
+import { canEditOwnerCenter, getSessionContext } from '@/lib/session'
 import { ownerFolder, type OcFile } from '@/lib/owner-center'
 import { FileManager } from './FileManager'
 
@@ -20,7 +20,7 @@ export default async function OwnerFolderPage({
   if (!folder || folder.kind !== 'files') notFound()
 
   const { profile } = await getSessionContext()
-  const isOwner = profile.role === 'owner'
+  const isOwner = canEditOwnerCenter(profile)
   const supabase = createClient()
 
   const { data } = await supabase

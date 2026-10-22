@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { getSessionContext } from '@/lib/session'
+import { canEditOwnerCenter, getSessionContext } from '@/lib/session'
 import type { OcFile } from '@/lib/owner-center'
 import type { Recipe, RecipeCategory } from '@/lib/recipes'
 import { FileManager } from '../[folder]/FileManager'
@@ -14,7 +14,7 @@ const BUCKET = 'owner-center'
 /** 03. 레시피 — 전체 메뉴를 카테고리별로 한 화면에 바로 보여준다 + 원본 파일 보관함 */
 export default async function RecipeHome() {
   const { profile } = await getSessionContext()
-  const isOwner = profile.role === 'owner'
+  const isOwner = canEditOwnerCenter(profile)
   const supabase = createClient()
 
   const [catRes, recipeRes, fileRes] = await Promise.all([

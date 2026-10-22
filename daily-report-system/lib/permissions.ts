@@ -34,7 +34,9 @@ export const PERM_MENUS: PermMenu[] = [
   { key: '/schedule', label: '근무 스케줄', desc: '주간·월간 근무표', defaultLevel: 'edit' },
   { key: '/reservations', label: '예약현황', desc: '날짜별 예약 접수·방문 관리', defaultLevel: 'edit' },
   { key: '/todos', label: '오늘 할일', desc: '매장 to-do', defaultLevel: 'edit' },
-  { key: '/owner-center', label: '점주센터', desc: '오픈발주·자료실', defaultLevel: 'edit' },
+  // 점주센터: 레시피·자료실은 전 매장 공용이라 기본은 조회만. 수정은 오너가 직접 열어준다.
+  // (DB 정책 can_edit_owner_center() 도 같은 규칙 — 029 마이그레이션)
+  { key: '/owner-center', label: '점주센터', desc: '오픈발주·자료실·레시피', defaultLevel: 'view' },
   {
     key: '/purchases',
     label: '거래처 매입 현황',

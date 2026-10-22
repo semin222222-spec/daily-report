@@ -100,6 +100,31 @@ export function assertMenuEdit(profile: Profile, menuKey: string) {
   }
 }
 
+/** 점주센터(레시피·자료실 등)를 고칠 수 있는가 — 오너, 또는 "수정가능"을 받은 점장 */
+export function canEditOwnerCenter(profile: Pick<Profile, 'role' | 'permissions'>): boolean {
+  return resolveLevel(profile.role, profile.permissions, '/owner-center') === 'edit'
+}
+
+/** 점주센터 서버 액션용 — 수정 권한이 없으면 throw, 있으면 supabase 클라이언트를 돌려준다 */
+export async function assertOwnerCenterEdit() {
+  const supabase = createClient()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  if (!session?.user) throw new Error('로그인이 필요합니다.')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, permissions')
+    .eq('id', session.user.id)
+    .maybeSingle()
+
+  if (!profile || !canEditOwnerCenter(profile)) {
+    throw new Error('점주센터 수정 권한이 없습니다.')
+  }
+  return supabase
+}
+
 /**
  * 서버 액션에서 "이 매장에 쓸 권한이 있는가"를 확인한다.
  * RLS가 최종 방어선이지만, 여기서 먼저 걸러야 사용자에게 친절한 에러가 나간다.

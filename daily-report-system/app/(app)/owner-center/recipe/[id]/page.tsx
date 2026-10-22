@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getSessionContext } from '@/lib/session'
+import { canEditOwnerCenter, getSessionContext } from '@/lib/session'
 import type { Recipe, RecipeCategory } from '@/lib/recipes'
 import { RecipeDetail } from './RecipeDetail'
 
@@ -15,7 +15,7 @@ export default async function RecipeDetailPage({
   params: { id: string }
 }) {
   const { profile } = await getSessionContext()
-  const isOwner = profile.role === 'owner'
+  const isOwner = canEditOwnerCenter(profile)
   const supabase = createClient()
 
   const [recipeRes, catRes] = await Promise.all([

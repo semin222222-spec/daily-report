@@ -1,32 +1,13 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { assertOwnerCenterEdit as assertOwner } from '@/lib/session'
 
 /**
  * 오픈발주 카테고리·품목 CRUD.
- * 추가·수정·삭제는 관리자(owner)만 가능하다. 점장은 보기 전용.
+ * 추가·수정·삭제는 오너, 또는 점주센터 "수정가능"을 받은 점장만 가능하다.
  * (RLS는 authenticated 전원 허용이므로 이 권한 체크가 실질적 방어선이다)
  */
-
-async function assertOwner() {
-  const supabase = createClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session?.user) throw new Error('로그인이 필요합니다.')
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'owner') {
-    throw new Error('관리자만 추가·수정·삭제할 수 있습니다.')
-  }
-  return supabase
-}
 
 // ── 카테고리 ────────────────────────────────────────────────
 export async function addCategory(formData: FormData): Promise<void> {

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getSessionContext } from '@/lib/session'
+import { canEditOwnerCenter, getSessionContext } from '@/lib/session'
 import type { OcCategory, OcItem } from '@/lib/owner-center'
 import { CategoryList } from './CategoryList'
 
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 /** 01. 오픈 발주 — 카테고리 목록 (DB) */
 export default async function OpenOrderHome() {
   const { profile } = await getSessionContext()
-  const isOwner = profile.role === 'owner'
+  const isOwner = canEditOwnerCenter(profile)
   const supabase = createClient()
 
   const [catRes, itemRes] = await Promise.all([
