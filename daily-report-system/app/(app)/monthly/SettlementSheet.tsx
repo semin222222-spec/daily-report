@@ -94,6 +94,12 @@ export function SettlementSheet({
   const costTotal = sumItems(rowsAsItems, categories)
   const net = totalSales - sumItems(rowsAsItems, ALL_CATEGORIES)
 
+  /** 매출 대비 비율 (월매출 6천에 인건비 1,800이면 "30.0%"). 매출이 없으면 표시하지 않는다 */
+  const pctOf = (amount: number) =>
+    showSummary && totalSales > 0
+      ? `${((amount / totalSales) * 100).toFixed(1)}%`
+      : null
+
   function addRow(category: SettlementCategory) {
     setRows((rs) => [
       ...rs,
@@ -407,6 +413,11 @@ export function SettlementSheet({
                     <span className="text-[13px]">
                       <span className="text-muted">{def.title} 합계 </span>
                       <b className="tabular-nums">{won(sectionTotal)}</b>
+                      {pctOf(sectionTotal) && (
+                        <span className="ml-1.5 tabular-nums text-muted">
+                          (매출 대비 {pctOf(sectionTotal)})
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -416,7 +427,14 @@ export function SettlementSheet({
             {group.defs.length > 1 && (
               <div className="mt-3 flex justify-between border-t-2 border-line pt-3 text-[14px] font-extrabold">
                 <span>{group.title} 총 합산금액</span>
-                <span className="tabular-nums">{won(groupTotal)}</span>
+                <span className="tabular-nums">
+                  {won(groupTotal)}
+                  {pctOf(groupTotal) && (
+                    <span className="ml-1.5 text-[13px] font-semibold text-muted">
+                      ({pctOf(groupTotal)})
+                    </span>
+                  )}
+                </span>
               </div>
             )}
           </div>
@@ -434,21 +452,33 @@ export function SettlementSheet({
               <tr>
                 <td className="font-bold">이번달 총 매출</td>
                 <td className="tabular-nums font-bold">{won(totalSales)}</td>
+                <td className="w-[72px] text-right tabular-nums text-muted">
+                  {pctOf(totalSales) ?? '-'}
+                </td>
               </tr>
-              {COST_GROUPS.map((g) => (
-                <tr key={g.label}>
-                  <td>{g.label}</td>
-                  <td className="tabular-nums text-bad">
-                    {won(-sumItems(rowsAsItems, g.categories))}
-                  </td>
-                </tr>
-              ))}
+              {COST_GROUPS.map((g) => {
+                const amount = sumItems(rowsAsItems, g.categories)
+                return (
+                  <tr key={g.label}>
+                    <td>{g.label}</td>
+                    <td className="tabular-nums text-bad">{won(-amount)}</td>
+                    <td className="text-right tabular-nums font-semibold">
+                      {pctOf(amount) ?? '-'}
+                    </td>
+                  </tr>
+                )
+              })}
               <tr className="pl-total">
                 <td>총 수익</td>
                 <td
                   className={`tabular-nums ${net >= 0 ? 'text-good' : 'text-bad'}`}
                 >
                   {won(net)}
+                </td>
+                <td
+                  className={`text-right tabular-nums ${net >= 0 ? 'text-good' : 'text-bad'}`}
+                >
+                  {pctOf(net) ?? '-'}
                 </td>
               </tr>
             </tbody>
