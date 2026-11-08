@@ -472,19 +472,60 @@ export function EquipOrders({
     })
   }
 
-  async function downloadExcel() {
-    if (!current) return
+  /** 발주서 하나(또는 여러 개)를 시트별로 엑셀에 담아 내려받는다 */
+  async function exportExcel(
+    sheets: { name: string; lines: EquipItem[]; vat: boolean }[],
+    fileName: string
+  ) {
     const XLSX = await import('xlsx')
-    const ws = XLSX.utils.aoa_to_sheet(toSheetRows(rows, vatIn))
-    ws['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 36 }, { wch: 22 }, { wch: 12 }, { wch: 7 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 40 }]
-    // 링크 칸(J열)을 눌러서 열 수 있게 하이퍼링크로
-    rows.forEach((_, i) => {
-      const cell = ws[XLSX.utils.encode_cell({ r: i + 1, c: 9 })]
-      if (cell && typeof cell.v === 'string' && cell.v) cell.l = { Target: cell.v }
-    })
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, '발주리스트')
-    XLSX.writeFile(wb, `${current.title || '발주리스트'}.xlsx`)
+    const usedNames = new Set<string>()
+    for (const s of sheets) {
+      const ws = XLSX.utils.aoa_to_sheet(toSheetRows(s.lines, s.vat))
+      ws['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 36 }, { wch: 22 }, { wch: 12 }, { wch: 7 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 40 }]
+      // 링크 칸(J열)을 눌러서 열 수 있게 하이퍼링크로
+      s.lines.forEach((_, i) => {
+        const cell = ws[XLSX.utils.encode_cell({ r: i + 1, c: 9 })]
+        if (cell && typeof cell.v === 'string' && cell.v) cell.l = { Target: cell.v }
+      })
+      // 시트 이름: 31자 이하, \ / ? * [ ] : 금지, 중복 금지
+      const base = (s.name.replace(/[\\/?*[\]:]/g, ' ').trim() || '발주리스트').slice(0, 28)
+      let name = base
+      for (let n = 2; usedNames.has(name); n++) name = `${base}(${n})`
+      usedNames.add(name)
+      XLSX.utils.book_append_sheet(wb, ws, name)
+    }
+    XLSX.writeFile(wb, `${fileName.replace(/[\\/:*?"<>|]/g, '_') || '발주리스트'}.xlsx`)
+  }
+
+  function downloadExcel() {
+    if (!current) return
+    return exportExcel(
+      [{ name: current.title, lines: rows, vat: vatIn }],
+      current.title || '발주리스트'
+    )
+  }
+
+  /** 주문함 체크 기준: 아직 안 담은 품목만 / 이미 주문한 품목만 */
+  function downloadByCheck(ordered: boolean) {
+    if (!current) return
+    const lines = rows.filter((r) => isChecked(r) === ordered)
+    return exportExcel(
+      [{ name: current.title, lines, vat: vatIn }],
+      `${current.title}_${ordered ? '주문한품목' : '남은품목'}`
+    )
+  }
+
+  /** 이 탭의 발주서 전부를 한 파일에, 발주서마다 시트 하나씩 */
+  function downloadAllExcel() {
+    return exportExcel(
+      orders.map((o) => ({
+        name: o.title,
+        lines: itemsOf(o.id),
+        vat: o.vat_included ?? false,
+      })),
+      kind === 'coupang' ? '쿠팡발주_전체' : '주방집기발주_전체'
+    )
   }
 
   // ── 폼 / 업로드 화면 ───────────────────────────
@@ -601,12 +642,6 @@ export function EquipOrders({
           </div>
 
           <div className="flex flex-wrap gap-1">
-            <button type="button" onClick={downloadExcel} className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">
-              엑셀 받기
-            </button>
-            <button type="button" onClick={() => window.print()} className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">
-              인쇄 · PDF
-            </button>
             {isOwner && (
               <>
                 <button type="button" onClick={() => setMode('edit')} className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">
@@ -626,6 +661,41 @@ export function EquipOrders({
               </>
             )}
           </div>
+        </div>
+
+        {/* 내려받기 · 인쇄 */}
+        <div className="mt-3 flex flex-wrap gap-1.5 print:hidden">
+          <button type="button" onClick={downloadExcel} className="btn-ghost !px-3 !py-1.5 !text-[12.5px]">
+            📥 엑셀 받기
+          </button>
+          {vatIn && (
+            <>
+              <button
+                type="button"
+                onClick={() => downloadByCheck(false)}
+                disabled={rows.length - checkedRows.length === 0}
+                className="btn-ghost !px-3 !py-1.5 !text-[12.5px]"
+              >
+                📥 남은 품목만 ({rows.length - checkedRows.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadByCheck(true)}
+                disabled={checkedRows.length === 0}
+                className="btn-ghost !px-3 !py-1.5 !text-[12.5px]"
+              >
+                📥 주문한 품목만 ({checkedRows.length})
+              </button>
+            </>
+          )}
+          {orders.length > 1 && (
+            <button type="button" onClick={downloadAllExcel} className="btn-ghost !px-3 !py-1.5 !text-[12.5px]">
+              📚 전체 발주서 엑셀 ({orders.length}개 시트)
+            </button>
+          )}
+          <button type="button" onClick={() => window.print()} className="btn-ghost !px-3 !py-1.5 !text-[12.5px]">
+            🖨️ 인쇄 · PDF
+          </button>
         </div>
 
         <div className="mt-3.5 grid grid-cols-2 gap-2.5 text-center shell:grid-cols-4">
