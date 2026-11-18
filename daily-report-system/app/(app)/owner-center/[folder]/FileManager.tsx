@@ -1,10 +1,11 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { humanSize, type OcFile } from '@/lib/owner-center'
 import { canMakePreview, makePdfThumbnail } from '@/lib/pdf-thumb'
+import { uploadResumable } from '@/lib/resumable-upload'
 
 const BUCKET = 'owner-center'
 
@@ -35,8 +36,25 @@ export function FileManager({
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [progress, setProgress] = useState('')
   const [confirming, setConfirming] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [previewing, setPreviewing] = useState<OcFile | null>(null)
+
+  // ESC로 미리보기 닫기 + 열려 있는 동안 배경 스크롤 잠금
+  useEffect(() => {
+    if (!previewing) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewing(null)
+    }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [previewing])
 
   // 파일명으로 실시간 필터 (대소문자·공백 무시)
   const q = query.trim().toLowerCase()
@@ -52,14 +70,16 @@ export function FileManager({
 
     const supabase = createClient()
     try {
-      for (const file of chosen) {
+      for (const [i, file] of chosen.entries()) {
         const path = safePath(folder, file.name)
+        const label = chosen.length > 1 ? `(${i + 1}/${chosen.length}) ` : ''
+        setProgress(`${label}0%`)
         // 파일은 브라우저에서 Storage로 직접 올라간다(서버 용량 제한 없음).
+        // 6MB 조각 이어올리기라 큰 디자인 파일도 끊김 없이 올라간다.
         // RLS(관리자만 insert)가 실제 방어선이다.
-        const { error: upErr } = await supabase.storage
-          .from(BUCKET)
-          .upload(path, file, { upsert: false })
-        if (upErr) throw upErr
+        await uploadResumable(supabase, BUCKET, path, file, (r) =>
+          setProgress(`${label}${Math.floor(r * 100)}%`),
+        )
 
         // AI·PDF면 첫 페이지를 PNG 미리보기로 만들어 함께 올린다
         let previewPath = ''
@@ -89,6 +109,7 @@ export function FileManager({
       setError(err instanceof Error ? err.message : '업로드에 실패했습니다.')
     } finally {
       setBusy(false)
+      setProgress('')
       if (inputRef.current) inputRef.current.value = ''
     }
   }
@@ -137,7 +158,7 @@ export function FileManager({
               disabled={busy}
               className="btn"
             >
-              {busy ? '올리는 중…' : '+ 파일 올리기'}
+              {busy ? `올리는 중… ${progress}` : '+ 파일 올리기'}
             </button>
           </>
         )}
@@ -188,13 +209,12 @@ export function FileManager({
           {shown.map((f) => (
             <div key={f.id} className="flex items-center gap-3 py-3">
               {thumbs[f.id] ? (
-                // 이미지 원본 또는 AI·PDF 미리보기 썸네일 (누르면 크게)
-                <a
-                  href={urls[f.id] ?? thumbs[f.id]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-line bg-white"
-                  title="크게 보기"
+                // 이미지 원본 또는 AI·PDF 미리보기 썸네일 (누르면 미리보기)
+                <button
+                  type="button"
+                  onClick={() => setPreviewing(f)}
+                  className="block h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-line bg-white transition hover:ring-2 hover:ring-brand/40"
+                  title="미리보기"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -203,20 +223,41 @@ export function FileManager({
                     className="h-full w-full object-cover"
                     loading="lazy"
                   />
-                </a>
+                </button>
               ) : (
                 <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-brand/[.08] text-[22px]">
                   {fileIcon(f.name)}
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[14px] font-semibold">
-                  {f.name}
-                </div>
+                {canPreview(f, thumbs) ? (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewing(f)}
+                    className="block max-w-full truncate text-left text-[14px] font-semibold hover:text-brand hover:underline"
+                    title="미리보기"
+                  >
+                    {f.name}
+                  </button>
+                ) : (
+                  <div className="truncate text-[14px] font-semibold">
+                    {f.name}
+                  </div>
+                )}
                 <div className="text-[12px] text-muted">
                   {humanSize(f.size)} · {f.created_at.slice(0, 10)}
                 </div>
               </div>
+
+              {canPreview(f, thumbs) && urls[f.id] && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewing(f)}
+                  className="btn-ghost !px-3 !py-1.5 !text-xs max-sm:!hidden"
+                >
+                  미리보기
+                </button>
+              )}
 
               {urls[f.id] && (
                 <a
@@ -266,6 +307,123 @@ export function FileManager({
           ? 'AI·PDF·이미지 등 어떤 파일이든 올릴 수 있습니다. 올리기·삭제는 관리자만 가능하고, 점주들은 다운로드만 됩니다.'
           : '파일 다운로드는 자유롭게 하실 수 있습니다. 올리기·삭제는 관리자(본사)만 가능합니다.'}
       </p>
+
+      {previewing && (
+        <PreviewModal
+          file={previewing}
+          url={urls[previewing.id]}
+          thumb={thumbs[previewing.id]}
+          onClose={() => setPreviewing(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']
+
+function extOf(name: string): string {
+  return name.split('.').pop()?.toLowerCase() ?? ''
+}
+
+/** 미리보기 가능한 파일: 이미지·PDF 원본, 또는 썸네일(AI 등)이 있는 파일 */
+function canPreview(f: OcFile, thumbs: Record<string, string>): boolean {
+  const ext = extOf(f.name)
+  return IMAGE_EXT.includes(ext) || ext === 'pdf' || Boolean(thumbs[f.id])
+}
+
+function PreviewModal({
+  file,
+  url,
+  thumb,
+  onClose,
+}: {
+  file: OcFile
+  url?: string
+  thumb?: string
+  onClose: () => void
+}) {
+  const ext = extOf(file.name)
+  const isImage = IMAGE_EXT.includes(ext)
+  const isPdf = ext === 'pdf'
+
+  let body: React.ReactNode
+  if (isImage && url) {
+    body = (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={url}
+        alt={file.name}
+        className="mx-auto max-h-full max-w-full object-contain"
+      />
+    )
+  } else if (isPdf && url) {
+    body = (
+      <iframe
+        src={url}
+        title={file.name}
+        className="h-full w-full rounded-lg bg-white"
+      />
+    )
+  } else if (thumb) {
+    // AI 등: 원본은 브라우저에서 못 여니 첫 페이지 미리보기 이미지를 보여준다
+    body = (
+      <div className="flex h-full flex-col items-center justify-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={thumb}
+          alt={file.name}
+          className="max-h-[calc(100%-2rem)] max-w-full object-contain"
+        />
+        <p className="text-[12px] text-white/70">
+          첫 페이지 미리보기입니다. 원본은 다운로드해서 확인하세요.
+        </p>
+      </div>
+    )
+  } else {
+    body = (
+      <p className="grid h-full place-items-center text-[14px] text-white/80">
+        이 형식은 미리보기를 지원하지 않습니다. 다운로드해서 확인하세요.
+      </p>
+    )
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${file.name} 미리보기`}
+      className="fixed inset-0 z-50 flex flex-col bg-black/80 p-3 sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="mb-3 flex items-center gap-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="min-w-0 flex-1 truncate text-[14px] font-semibold text-white">
+          {file.name}
+        </div>
+        {url && (
+          <a
+            href={url}
+            download={file.name}
+            className="rounded-lg bg-white/15 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-white/25"
+          >
+            다운로드
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="닫기"
+          className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 text-white hover:bg-white/25"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="min-h-0 flex-1" onClick={(e) => e.stopPropagation()}>
+        {body}
+      </div>
     </div>
   )
 }
