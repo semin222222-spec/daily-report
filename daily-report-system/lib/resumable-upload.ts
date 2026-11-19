@@ -1,10 +1,19 @@
 import * as tus from 'tus-js-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+/** 이 크기 이하는 일반 업로드(모든 기기에서 안정적), 초과분만 이어올리기 */
+const RESUMABLE_THRESHOLD = 50 * 1024 * 1024
+/** 이어올리기가 이 시간 동안 1바이트도 진행이 없으면 멈춘 것으로 보고 중단 */
+const STALL_MS = 30_000
+
 /**
- * 큰 파일을 Supabase Storage에 이어올리기(TUS) 방식으로 올린다.
- * - 6MB 조각으로 나눠 올리고, 네트워크가 잠깐 끊겨도 자동으로 다시 이어서 올린다.
- * - onProgress(0~1)로 진행률을 알려준다.
+ * 파일을 Supabase Storage에 올린다.
+ * - 50MB 이하: 일반 업로드 (사진·일반 디자인 파일)
+ * - 50MB 초과: 6MB 조각 이어올리기(TUS). 네트워크가 잠깐 끊겨도 자동으로 이어 올린다.
+ *
+ * 왜 나눴나: 아이폰 사파리에서 TUS 조각이 빈 내용으로 전송돼, 서버는 "받았다(204)"고
+ * 답하는데 진행률이 0%에서 영원히 멈추는 문제가 있었다(2026-11 실사용 로그로 확인).
+ * 그래서 작은 파일은 검증된 일반 업로드로, 큰 파일만 TUS로 보내고 멈춤 감시를 붙인다.
  */
 export async function uploadResumable(
   supabase: SupabaseClient,
@@ -13,12 +22,33 @@ export async function uploadResumable(
   file: File,
   onProgress?: (ratio: number) => void,
 ): Promise<void> {
+  if (file.size <= RESUMABLE_THRESHOLD) {
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, { upsert: false, contentType: file.type || undefined })
+    if (error) throw new Error(friendlyError(error))
+    onProgress?.(1)
+    return
+  }
+
   const {
     data: { session },
   } = await supabase.auth.getSession()
   if (!session) throw new Error('로그인이 만료되었습니다. 다시 로그인해 주세요.')
 
   return new Promise<void>((resolve, reject) => {
+    let lastSent = -1
+    let lastMoveAt = Date.now()
+    let done = false
+
+    const finish = (err?: Error) => {
+      if (done) return
+      done = true
+      clearInterval(watchdog)
+      if (err) reject(err)
+      else resolve()
+    }
+
     const upload = new tus.Upload(file, {
       endpoint: resumableEndpoint(),
       retryDelays: [0, 3000, 5000, 10000, 20000],
@@ -35,15 +65,30 @@ export async function uploadResumable(
         cacheControl: '3600',
       },
       chunkSize: 6 * 1024 * 1024, // Supabase는 6MB 고정
-      onError: (err) => reject(new Error(friendlyError(err))),
-      onProgress: (sent, total) => onProgress?.(total ? sent / total : 0),
-      onSuccess: () => resolve(),
+      onError: (err) => finish(new Error(friendlyError(err))),
+      onProgress: (sent, total) => {
+        if (sent > lastSent) {
+          lastSent = sent
+          lastMoveAt = Date.now()
+        }
+        onProgress?.(total ? sent / total : 0)
+      },
+      onSuccess: () => finish(),
     })
 
-    upload.findPreviousUploads().then((prev) => {
-      if (prev.length) upload.resumeFromPreviousUpload(prev[0])
-      upload.start()
-    })
+    // 진행이 멈추면(빈 조각 무한 반복 등) 중단하고 안내한다
+    const watchdog = setInterval(() => {
+      if (Date.now() - lastMoveAt > STALL_MS) {
+        upload.abort(true).catch(() => {})
+        finish(
+          new Error(
+            '업로드가 진행되지 않아 중단했습니다. 와이파이 상태를 확인하거나 PC에서 다시 올려주세요.',
+          ),
+        )
+      }
+    }, 5000)
+
+    upload.start()
   })
 }
 
@@ -56,10 +101,10 @@ function resumableEndpoint(): string {
     : `${base}/storage/v1/upload/resumable`
 }
 
-function friendlyError(err: Error): string {
+function friendlyError(err: { message?: string }): string {
   const msg = err.message ?? ''
   if (/413|too large|exceeded the maximum/i.test(msg)) {
-    return '파일이 업로드 허용 용량보다 큽니다. 본사에 용량 한도 상향을 요청하세요.'
+    return '파일이 업로드 허용 용량(500MB)보다 큽니다.'
   }
   return msg || '업로드에 실패했습니다.'
 }
