@@ -37,6 +37,8 @@ export function FileManager({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [draftName, setDraftName] = useState('')
   const [confirming, setConfirming] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [previewing, setPreviewing] = useState<OcFile | null>(null)
@@ -111,6 +113,32 @@ export function FileManager({
       setBusy(false)
       setProgress('')
       if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  /** 화면에 보이는 이름만 바꾼다 (저장소 경로는 원래 무작위라 그대로 둔다) */
+  async function rename(f: OcFile) {
+    let name = draftName.trim()
+    if (!name) return setError('파일 이름을 입력하세요.')
+    // 확장자를 지웠으면 원래 확장자를 붙여준다 (다운로드 후 열리게)
+    const ext = extOf(f.name)
+    if (f.name.includes('.') && extOf(name) !== ext) name = `${name}.${ext}`
+    if (name === f.name) return setRenaming(null)
+
+    setBusy(true)
+    setError('')
+    try {
+      const { error: upErr } = await createClient()
+        .from('oc_files')
+        .update({ name: name.slice(0, 200) })
+        .eq('id', f.id)
+      if (upErr) throw upErr
+      setRenaming(null)
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '이름 변경에 실패했습니다.')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -230,7 +258,41 @@ export function FileManager({
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                {canPreview(f, thumbs) ? (
+                {renaming === f.id ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      rename(f)
+                    }}
+                    className="flex items-center gap-1"
+                  >
+                    <input
+                      autoFocus
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setRenaming(null)
+                      }}
+                      maxLength={200}
+                      className="fld-input !py-1.5 !text-[14px]"
+                      aria-label="새 파일 이름"
+                    />
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="btn !px-3 !py-1.5 !text-xs"
+                    >
+                      저장
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRenaming(null)}
+                      className="btn-ghost !px-3 !py-1.5 !text-xs"
+                    >
+                      취소
+                    </button>
+                  </form>
+                ) : canPreview(f, thumbs) ? (
                   <button
                     type="button"
                     onClick={() => setPreviewing(f)}
@@ -261,7 +323,7 @@ export function FileManager({
 
               {urls[f.id] && (
                 <a
-                  href={urls[f.id]}
+                  href={downloadUrl(urls[f.id], f.name)}
                   download={f.name}
                   className="btn-ghost !px-3 !py-1.5 !text-xs"
                 >
@@ -269,7 +331,21 @@ export function FileManager({
                 </a>
               )}
 
+              {isOwner && renaming !== f.id && confirming !== f.id && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRenaming(f.id)
+                    setDraftName(f.name)
+                  }}
+                  className="rounded-md px-2 py-1.5 text-[12px] font-semibold text-muted transition hover:bg-brand/10 hover:text-brand"
+                >
+                  이름
+                </button>
+              )}
+
               {isOwner &&
+                renaming !== f.id &&
                 (confirming === f.id ? (
                   <div className="flex items-center gap-1">
                     <button
@@ -324,6 +400,14 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']
 
 function extOf(name: string): string {
   return name.split('.').pop()?.toLowerCase() ?? ''
+}
+
+/**
+ * 서명 URL에 download 파라미터를 붙여, 받은 파일이 화면의 이름으로 저장되게 한다.
+ * (다른 도메인 링크라 <a download> 속성만으로는 이름이 적용되지 않는다)
+ */
+function downloadUrl(url: string, name: string): string {
+  return `${url}${url.includes('?') ? '&' : '?'}download=${encodeURIComponent(name)}`
 }
 
 /** 미리보기 가능한 파일: 이미지·PDF 원본, 또는 썸네일(AI 등)이 있는 파일 */
@@ -405,7 +489,7 @@ function PreviewModal({
         </div>
         {url && (
           <a
-            href={url}
+            href={downloadUrl(url, file.name)}
             download={file.name}
             className="rounded-lg bg-white/15 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-white/25"
           >
