@@ -35,6 +35,43 @@ export interface Profile {
   created_at: string
 }
 
+/** 마감일지 — 메뉴별 판매 수량 한 줄 */
+export interface ClosingMenuSale {
+  name: string
+  qty: number
+}
+
+/** 마감일지 — 특이사항 한 건 */
+export interface ClosingIssue {
+  type: string // 추가결제 / 사고 / 클레임 / 시설고장 / 기타
+  text: string
+  amount: number // 원, 없으면 0
+}
+
+/** 마감일지 (closing_logs) — 직원이 마감 후 남기는 운영 기록 */
+export interface ClosingLog {
+  id: string
+  store_id: string
+  date: string // 'YYYY-MM-DD'
+  writer: string
+  open_run: number
+  naver_bookings: number
+  full_at: string // 'HH:MM' 또는 ''
+  condition: number // 1~10
+  late: boolean
+  late_note: string
+  complaint: boolean
+  complaint_note: string
+  stock_issue: boolean
+  stock_issue_note: string
+  menu_sales: ClosingMenuSale[]
+  issues: ClosingIssue[]
+  note: string
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface DailyClosing {
   id: string
   store_id: string

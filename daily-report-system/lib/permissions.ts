@@ -28,6 +28,12 @@ export interface PermMenu {
  */
 export const PERM_MENUS: PermMenu[] = [
   { key: '/closing', label: '일마감 입력', desc: '일별 매출·원가 마감', defaultLevel: 'edit' },
+  {
+    key: '/closing-log',
+    label: '마감일지',
+    desc: '오픈런·예약·컨디션·특이사항·메뉴 판매량',
+    defaultLevel: 'edit',
+  },
   { key: '/manager-report', label: '점장보고서', desc: '주간·월간 서술 보고', defaultLevel: 'edit' },
   { key: '/monthly', label: '월정산', desc: '월 손익·급여 정산', defaultLevel: 'edit' },
   { key: '/labor', label: '인건비', desc: '직원·알바 급여 · 보건증', defaultLevel: 'edit' },

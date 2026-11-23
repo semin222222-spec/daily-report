@@ -7,7 +7,7 @@ import { logout, switchStore } from '@/app/(app)/actions'
 import { StoreLogo } from '@/components/BrandMark'
 import { InstallButton } from '@/components/InstallButton'
 import { formatDateKo, todayKST } from '@/lib/format'
-import { navLabel, type NavItem } from '@/lib/nav'
+import { isNavActive, navLabel, type NavItem } from '@/lib/nav'
 import type { SessionContext } from '@/lib/types'
 
 /**
@@ -73,7 +73,7 @@ export function AppShell({
 
         <nav className="flex flex-col overflow-y-auto">
           {navItems.map((item) => {
-            const active = pathname.startsWith(item.href)
+            const active = isNavActive(pathname, item.href)
             return (
               <Link
                 key={item.href}

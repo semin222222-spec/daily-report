@@ -15,6 +15,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', icon: '📊', label: '대시보드' },
   { href: '/closing', icon: '📝', label: '일마감 입력' },
+  { href: '/closing-log', icon: '🗒️', label: '마감일지' },
   // 당장 쓰지 않아 숨김. /daily 로 직접 들어가면 여전히 동작한다.
   { href: '/daily', icon: '📄', label: '일일 보고서', hidden: true },
   { href: '/manager-report', icon: '📋', label: '점장보고서' },
@@ -38,5 +39,13 @@ export const VISIBLE_NAV_ITEMS = NAV_ITEMS.filter((n) => !n.hidden)
 
 /** 상단바 제목 — 숨긴 화면도 제목은 제대로 나와야 하므로 전체 목록에서 찾는다 */
 export function navLabel(pathname: string): string {
-  return NAV_ITEMS.find((n) => pathname.startsWith(n.href))?.label ?? '대시보드'
+  return NAV_ITEMS.find((n) => isNavActive(pathname, n.href))?.label ?? '대시보드'
+}
+
+/**
+ * 이 메뉴가 현재 경로인가. 단순 startsWith면 '/closing-log'가 '/closing'에도
+ * 걸리므로, 경로가 정확히 같거나 그 아래('/closing/…')일 때만 참.
+ */
+export function isNavActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(href + '/')
 }

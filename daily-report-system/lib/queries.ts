@@ -2,6 +2,7 @@ import { cache } from 'react'
 import { createClient } from './supabase/server'
 import { toISODate, parseISODate } from './format'
 import type {
+  ClosingLog,
   DailyClosing,
   FixedCosts,
   MonthlySettlement,
@@ -95,6 +96,58 @@ export async function getClosingsBetween(
     .lte('date', to)
     .order('date', { ascending: true })
   return (data ?? []) as DailyClosing[]
+}
+
+/** 그날 마감일지 (없으면 null) */
+export async function getClosingLog(
+  storeId: string,
+  date: string
+): Promise<ClosingLog | null> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('closing_logs')
+    .select('*')
+    .eq('store_id', storeId)
+    .eq('date', date)
+    .maybeSingle()
+  return (data ?? null) as ClosingLog | null
+}
+
+/** 기간 내 마감일지 (날짜 오름차순) */
+export async function getClosingLogsBetween(
+  storeId: string,
+  from: string,
+  to: string
+): Promise<ClosingLog[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('closing_logs')
+    .select('*')
+    .eq('store_id', storeId)
+    .gte('date', from)
+    .lte('date', to)
+    .order('date', { ascending: true })
+  return (data ?? []) as ClosingLog[]
+}
+
+/**
+ * 이 날짜 이전 가장 최근 마감일지 — 새 일지를 쓸 때 메뉴 목록을
+ * 그대로 가져와(수량은 0) 매번 메뉴를 다시 적지 않게 한다.
+ */
+export async function getPrevClosingLog(
+  storeId: string,
+  before: string
+): Promise<ClosingLog | null> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('closing_logs')
+    .select('*')
+    .eq('store_id', storeId)
+    .lt('date', before)
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return (data ?? null) as ClosingLog | null
 }
 
 /** 가장 최근에 마감된 날 (없으면 null) */
