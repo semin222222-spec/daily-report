@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { canEditOwnerCenter, getSessionContext } from '@/lib/session'
-import type { OcFile } from '@/lib/owner-center'
+import { cachedThumbUrl, recipePhotoUrl, type OcFile } from '@/lib/owner-center'
 import type { Recipe, RecipeCategory } from '@/lib/recipes'
 import { FileManager } from '../[folder]/FileManager'
 import { RecipeList } from './RecipeList'
@@ -31,16 +31,14 @@ export default async function RecipeHome() {
   const recipes = (recipeRes.data ?? []) as Recipe[]
   const files = (fileRes.data ?? []) as OcFile[]
 
-  // 레시피 사진 썸네일 — 비공개 버킷이라 서명 URL을 미리 만든다
+  // 레시피 사진: 원본(0.5~3MB) 대신 줄인 사진의 고정 주소 → 브라우저가 기억해 두 번째부터 즉시.
+  // thumbs = 목록용(작게), photos = 인쇄용(크게)
   const thumbs: Record<string, string> = {}
-  const withPhoto = recipes.filter((r) => r.photo_path)
-  if (withPhoto.length > 0) {
-    const th = await supabase.storage
-      .from(BUCKET)
-      .createSignedUrls(withPhoto.map((r) => r.photo_path), 60 * 60)
-    th.data?.forEach((s, i) => {
-      if (s.signedUrl) thumbs[withPhoto[i].id] = s.signedUrl
-    })
+  const photos: Record<string, string> = {}
+  for (const r of recipes) {
+    if (!r.photo_path) continue
+    thumbs[r.id] = recipePhotoUrl(r, 240)
+    photos[r.id] = recipePhotoUrl(r, 900)
   }
 
   // 원본 파일함
@@ -54,15 +52,18 @@ export default async function RecipeHome() {
       if (s.signedUrl) urls[files[i].id] = s.signedUrl
     })
 
-    const thumbTargets = files
-      .map((f) => ({ id: f.id, path: f.thumb_path || f.preview_path || (isImageName(f.name) ? f.path : '') }))
-      .filter((t) => t.path)
-    if (thumbTargets.length > 0) {
+    const signTargets: { id: string; path: string }[] = []
+    for (const f of files) {
+      const cached = cachedThumbUrl(f)
+      if (cached) fileThumbs[f.id] = cached
+      else if (isImageName(f.name)) signTargets.push({ id: f.id, path: f.path })
+    }
+    if (signTargets.length > 0) {
       const th = await supabase.storage
         .from(BUCKET)
-        .createSignedUrls(thumbTargets.map((t) => t.path), 60 * 60)
+        .createSignedUrls(signTargets.map((t) => t.path), 60 * 60)
       th.data?.forEach((s, i) => {
-        if (s.signedUrl) fileThumbs[thumbTargets[i].id] = s.signedUrl
+        if (s.signedUrl) fileThumbs[signTargets[i].id] = s.signedUrl
       })
     }
   }
@@ -93,6 +94,7 @@ export default async function RecipeHome() {
         categories={categories}
         recipes={recipes}
         thumbs={thumbs}
+        photos={photos}
         isOwner={isOwner}
       />
 

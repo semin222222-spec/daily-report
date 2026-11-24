@@ -22,6 +22,20 @@ export interface OwnerFolder {
 }
 
 /** DB 파일 (oc_files) */
+/**
+ * 목록에 쓸 썸네일의 고정 주소 (app/api/oc-thumb). 브라우저가 기억해서 두 번째부터 즉시 뜬다.
+ * 썸네일·미리보기 이미지가 없는 파일은 null — 호출한 쪽에서 서명 URL 등으로 대신한다.
+ */
+export function cachedThumbUrl(f: { thumb_path: string; preview_path: string }): string | null {
+  const p = f.thumb_path || f.preview_path
+  return p ? `/api/oc-thumb?p=${encodeURIComponent(p)}` : null
+}
+
+/** 레시피 사진을 폭 w로 줄인 고정 주소. 사진이 바뀌면 v(수정 시각)가 바뀌어 새로 받는다 */
+export function recipePhotoUrl(r: { photo_path: string; updated_at: string }, w: number): string {
+  return `/api/oc-thumb?p=${encodeURIComponent(r.photo_path)}&w=${w}&v=${encodeURIComponent(r.updated_at)}`
+}
+
 export interface OcFile {
   id: string
   folder: string

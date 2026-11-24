@@ -10,12 +10,15 @@ export function RecipeList({
   categories,
   recipes,
   thumbs,
+  photos,
   isOwner,
 }: {
   categories: RecipeCategory[]
   recipes: Recipe[]
-  /** 레시피 id → 썸네일 서명 URL */
+  /** 레시피 id → 목록용 작은 사진 주소 */
   thumbs: Record<string, string>
+  /** 레시피 id → 인쇄용 큰 사진 주소 */
+  photos: Record<string, string>
   isOwner: boolean
 }) {
   const [query, setQuery] = useState('')
@@ -253,7 +256,7 @@ export function RecipeList({
             <div key={r.id} className={idx > 0 ? 'print:break-before-page' : undefined}>
               <RecipePrintSheet
                 recipe={r}
-                photoUrl={thumbs[r.id]}
+                photoUrl={photos[r.id]}
                 categoryName={categoryNameById.get(r.category_id)}
               />
             </div>

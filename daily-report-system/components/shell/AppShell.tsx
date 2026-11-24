@@ -169,7 +169,8 @@ export function AppShell({
       </aside>
 
       {/* ── 메인 ────────────────────────────────── */}
-      <div className="flex min-w-0 flex-col">
+      {/* overflow-x-clip: 안쪽 무엇이 넓어져도 페이지 전체가 옆으로 밀리지 않게 (sticky는 유지됨) */}
+      <div className="flex min-w-0 flex-col overflow-x-clip">
         <header
           className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-page/85
                      pb-2.5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]
@@ -186,7 +187,7 @@ export function AppShell({
             ☰
           </button>
 
-          <div className="min-w-0">
+          <div className="min-w-0 shell:max-w-[180px] shell:shrink-0">
             <h1 className="m-0 truncate text-[17px] font-extrabold shell:text-[19px]">
               {navLabel(pathname)}
             </h1>
@@ -222,7 +223,9 @@ export function AppShell({
           )}
 
           {isOwner && stores.length > 1 && (
-            <div className="ml-auto hidden items-center gap-1.5 rounded-xl border border-line bg-white p-1 shell:flex">
+            // 매장이 많으면(12개+) 헤더가 화면보다 넓어져 페이지 전체가 옆으로 밀렸다.
+            // 이 줄 안에서만 가로로 넘기게 한다.
+            <div className="no-scrollbar ml-auto hidden min-w-0 items-center gap-1.5 overflow-x-auto rounded-xl border border-line bg-white p-1 shell:flex">
               {stores.map((s) => {
                 const active = s.id === activeStore.id
                 return (
@@ -235,8 +238,8 @@ export function AppShell({
                         switchStore(s.id)
                       })
                     }
-                    className={`flex items-center gap-[7px] rounded-[9px] px-2 py-[7px] text-[13px]
-                                font-bold transition disabled:opacity-60 shell:px-3.5 ${
+                    className={`flex shrink-0 items-center gap-[7px] whitespace-nowrap rounded-[9px] px-2 py-[7px] text-[13px]
+                                font-bold transition disabled:opacity-60 shell:px-3 ${
                                   active
                                     ? 'bg-page text-ink shadow-[inset_0_0_0_1px_#e7e4dd]'
                                     : 'text-ink-2 hover:text-ink'

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canEditOwnerCenter, getSessionContext } from '@/lib/session'
-import { ownerFolder, type OcFile } from '@/lib/owner-center'
+import { cachedThumbUrl, ownerFolder, type OcFile } from '@/lib/owner-center'
 import { FileManager } from './FileManager'
 
 export const dynamic = 'force-dynamic'
@@ -36,32 +36,30 @@ export default async function OwnerFolderPage({
   const urls: Record<string, string> = {}
   const thumbs: Record<string, string> = {}
   if (files.length > 0) {
-    const dl = await supabase.storage
-      .from('owner-center')
-      .createSignedUrls(files.map((f) => f.path), 60 * 60)
+    // 썸네일: 작은 썸네일·AI/PDF 미리보기는 고정 주소(브라우저가 기억) →
+    // 썸네일이 없는 작은 이미지만 원본 서명 URL. 큰 원본은 목록에서 안 불러오고 아이콘으로 둔다.
+    const signTargets: { id: string; path: string }[] = []
+    for (const f of files) {
+      const cached = cachedThumbUrl(f)
+      if (cached) thumbs[f.id] = cached
+      else if (isImageName(f.name) && f.size <= SMALL_IMAGE_BYTES) signTargets.push({ id: f.id, path: f.path })
+    }
+
+    // 다운로드용 서명과 썸네일용 서명을 동시에 요청 (왕복 1번)
+    const [dl, th] = await Promise.all([
+      supabase.storage.from('owner-center').createSignedUrls(files.map((f) => f.path), 60 * 60),
+      signTargets.length > 0
+        ? supabase.storage
+            .from('owner-center')
+            .createSignedUrls(signTargets.map((t) => t.path), 60 * 60)
+        : Promise.resolve({ data: [] as { signedUrl: string }[] }),
+    ])
     dl.data?.forEach((s, i) => {
       if (s.signedUrl) urls[files[i].id] = s.signedUrl
     })
-
-    // 썸네일로 쓸 경로: 작은 썸네일 → AI·PDF 미리보기 → (작은 이미지만) 원본.
-    // 큰 원본(10~48MB)을 목록에서 불러오면 한참 걸리거나 안 떠서, 그때는 아이콘으로 둔다.
-    const thumbTargets = files
-      .map((f) => ({
-        id: f.id,
-        path:
-          f.thumb_path ||
-          f.preview_path ||
-          (isImageName(f.name) && f.size <= SMALL_IMAGE_BYTES ? f.path : ''),
-      }))
-      .filter((t) => t.path)
-    if (thumbTargets.length > 0) {
-      const th = await supabase.storage
-        .from('owner-center')
-        .createSignedUrls(thumbTargets.map((t) => t.path), 60 * 60)
-      th.data?.forEach((s, i) => {
-        if (s.signedUrl) thumbs[thumbTargets[i].id] = s.signedUrl
-      })
-    }
+    th.data?.forEach((s, i) => {
+      if (s.signedUrl) thumbs[signTargets[i].id] = s.signedUrl
+    })
   }
 
   return (

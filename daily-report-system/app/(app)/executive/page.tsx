@@ -3,7 +3,7 @@ import { todayKST } from '@/lib/format'
 import { guardMenu } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import type { EquipItem, EquipOrder } from '@/lib/equip-order'
-import type { OcFile } from '@/lib/owner-center'
+import { cachedThumbUrl, type OcFile } from '@/lib/owner-center'
 import type { MeetingNote, OpenChecklist, OpenTask } from '@/lib/types'
 import { ExecutiveTabs } from './ExecutiveTabs'
 
@@ -71,12 +71,14 @@ export default async function ExecutivePage() {
       ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'].includes(
         n.split('.').pop()?.toLowerCase() ?? ''
       )
+    // 썸네일·미리보기가 있으면 브라우저가 기억하는 고정 주소, 없으면 원본 서명 URL
     const targets = files
-      .map((f) => ({
-        id: f.id,
-        path: f.thumb_path || f.preview_path || (isImg(f.name) ? f.path : ''),
-      }))
-      .filter((t) => t.path)
+      .filter((f) => {
+        const cached = cachedThumbUrl(f)
+        if (cached) thumbs[f.id] = cached
+        return !cached && isImg(f.name)
+      })
+      .map((f) => ({ id: f.id, path: f.path }))
     if (targets.length > 0) {
       const th = await supabase.storage
         .from('owner-center')
