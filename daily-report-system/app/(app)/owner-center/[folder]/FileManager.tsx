@@ -10,8 +10,10 @@ import { uploadResumable } from '@/lib/resumable-upload'
 
 const BUCKET = 'owner-center'
 /** 분류 탭 — '전체'와 '미분류'는 고정 값 */
-const ALL = '__all__'
+const ALL = '__all__' // 분류 폴더 카드 화면
+const FLAT = '__flat__' // 분류 상관없이 모든 파일
 const UNCAT = ''
+const VIEW_KEY = 'oc-file-view'
 const NEW_CAT = '__new__'
 
 /** 파일명에서 안전한 저장 경로를 만든다 (한글·공백·특수문자 처리) */
@@ -60,7 +62,24 @@ export function FileManager({
     .sort((a, b) => a.localeCompare(b, 'ko'))
   const uncatCount = catCounts.get(UNCAT) ?? 0
   // 지금 탭이 사라졌으면(마지막 파일을 옮겼을 때) 전체로
-  const activeTab = tab === ALL || catCounts.has(tab) ? tab : ALL
+  const activeTab = tab === ALL || tab === FLAT || catCounts.has(tab) ? tab : ALL
+
+  // 목록/격자 보기 — 기기마다 마지막 선택을 기억한다
+  const [view, setViewState] = useState<'grid' | 'list'>('grid')
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(VIEW_KEY)
+      if (v === 'grid' || v === 'list') setViewState(v)
+    } catch {}
+  }, [])
+  function setView(v: 'grid' | 'list') {
+    setViewState(v)
+    try {
+      localStorage.setItem(VIEW_KEY, v)
+    } catch {}
+  }
+  /** 격자 타일의 '⋯' 관리 메뉴가 열린 파일 */
+  const [menuFor, setMenuFor] = useState<string | null>(null)
 
   // ESC로 미리보기 닫기 + 열려 있는 동안 배경 스크롤 잠금
   useEffect(() => {
@@ -82,18 +101,19 @@ export function FileManager({
   // 검색 중에는 분류와 상관없이 전체에서 찾는다
   const shown = q
     ? files.filter((f) => f.name.toLowerCase().includes(q))
-    : activeTab === ALL
+    : activeTab === ALL || activeTab === FLAT
       ? files
       : files.filter((f) => f.category === activeTab)
 
-  // '전체' 탭에서는 분류별로 묶어서 보여준다 (분류 순서 → 미분류)
-  const groups: { name: string; items: OcFile[] }[] =
-    !q && activeTab === ALL && categories.length > 0
-      ? [
-          ...categories.map((c) => ({ name: c, items: shown.filter((f) => f.category === c) })),
-          { name: UNCAT, items: shown.filter((f) => f.category === UNCAT) },
-        ].filter((g) => g.items.length > 0)
-      : [{ name: '', items: shown }]
+  // 분류가 있으면 첫 화면은 폴더 카드 (검색 중이면 바로 결과)
+  const showFolders = !q && activeTab === ALL && categories.length > 0
+  const folderCards = [
+    ...categories.map((c) => ({ key: c, label: c })),
+    ...(uncatCount > 0 ? [{ key: UNCAT, label: '미분류' }] : []),
+  ].map((c) => {
+    const items = files.filter((f) => f.category === c.key)
+    return { ...c, n: items.length, covers: items.filter((f) => thumbs[f.id]).slice(0, 4) }
+  })
 
   /** 새 분류 이름을 묻는다. 취소하면 null */
   function askNewCategory(): string | null {
@@ -179,7 +199,7 @@ export function FileManager({
           preview_path: previewPath,
           thumb_path: thumbPath,
           // 분류 탭을 보고 있을 때 올리면 그 분류로 들어간다
-          category: activeTab === ALL ? UNCAT : activeTab,
+          category: activeTab === ALL || activeTab === FLAT ? UNCAT : activeTab,
         })
         if (metaErr) throw metaErr
       }
@@ -301,33 +321,119 @@ export function FileManager({
         </div>
       )}
 
-      {/* 분류 탭 — 검색 중에는 숨긴다(검색은 전체에서) */}
-      {!q && (categories.length > 0 || isOwner) && files.length > 0 && (
-        <div className="-mx-1 mb-1 flex gap-1.5 overflow-x-auto px-1 pb-2">
-          {[
-            { key: ALL, label: '전체', n: files.length },
+      {/* 분류 폴더 카드 — 첫 화면. 누르면 그 분류의 파일이 격자로 펼쳐진다 */}
+      {showFolders && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 shell:grid-cols-4">
+          {folderCards.map((c) => (
+            <button
+              key={c.key || '_'}
+              type="button"
+              onClick={() => setTab(c.key)}
+              className="group overflow-hidden rounded-xl border border-line bg-white text-left transition hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md"
+            >
+              <div className="grid aspect-[4/3] grid-cols-2 grid-rows-2 gap-px bg-line-soft">
+                {c.covers.length === 0 ? (
+                  <div className="col-span-2 row-span-2 grid place-items-center bg-brand/[.06] text-[34px]">
+                    📁
+                  </div>
+                ) : (
+                  c.covers.map((f, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={f.id}
+                      src={thumbs[f.id]}
+                      alt=""
+                      loading="lazy"
+                      className={`h-full w-full bg-white object-cover ${
+                        c.covers.length === 1
+                          ? 'col-span-2 row-span-2'
+                          : c.covers.length === 2
+                            ? 'row-span-2'
+                            : c.covers.length === 3 && i === 0
+                              ? 'row-span-2'
+                              : ''
+                      }`}
+                    />
+                  ))
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+                <span className="truncate text-[14px] font-extrabold group-hover:text-brand">
+                  {c.label}
+                </span>
+                <span className="shrink-0 rounded-full bg-line-soft px-2 py-0.5 text-[11.5px] font-bold text-muted">
+                  {c.n}
+                </span>
+              </div>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setTab(FLAT)}
+            className="grid min-h-[120px] place-items-center rounded-xl border border-dashed border-line text-center text-[13px] font-bold text-muted transition hover:border-brand/40 hover:text-brand"
+          >
+            <span>
+              🗂️
+              <br />
+              모든 파일 보기 · {files.length}
+            </span>
+          </button>
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => {
+                const name = askNewCategory()
+                if (name) {
+                  setExtraCats((prev) => (prev.includes(name) ? prev : [...prev, name]))
+                  setTab(name)
+                }
+              }}
+              className="grid min-h-[120px] place-items-center rounded-xl border border-dashed border-line text-[13px] font-bold text-muted transition hover:border-brand/40 hover:text-brand"
+            >
+              + 새 분류
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 분류 안: 분류 바로가기 칩 + 목록/격자 전환 */}
+      {!showFolders && files.length > 0 && (
+        <div className="mb-2 flex items-start gap-2">
+        <div className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 pb-2">
+          {!q && [
+            ...(categories.length > 0
+              ? [{ key: ALL, label: '← 분류', n: -1 }]
+              : []),
+            { key: FLAT, label: '전체', n: files.length },
             ...categories.map((c) => ({ key: c, label: c, n: catCounts.get(c) ?? 0 })),
             ...(uncatCount > 0 && categories.length > 0
               ? [{ key: UNCAT, label: '미분류', n: uncatCount }]
               : []),
-          ].map((t) => (
-            <button
-              key={t.key || '_'}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition ${
-                activeTab === t.key
-                  ? 'border-brand bg-brand text-white'
-                  : 'border-line bg-white text-ink-2 hover:border-brand/40'
-              }`}
-            >
-              {t.label}
-              <span className={`ml-1 font-semibold ${activeTab === t.key ? 'text-white/80' : 'text-muted'}`}>
-                {t.n}
-              </span>
-            </button>
-          ))}
-          {isOwner && (
+          ].map((t) => {
+            const on = activeTab === t.key || (t.key === FLAT && activeTab === ALL)
+            return (
+              <button
+                key={t.key || '_'}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition ${
+                  on
+                    ? 'border-brand bg-brand text-white'
+                    : t.n < 0
+                      ? 'border-transparent bg-line-soft text-ink'
+                      : 'border-line bg-white text-ink-2 hover:border-brand/40'
+                }`}
+              >
+                {t.label}
+                {t.n >= 0 && (
+                  <span className={`ml-1 font-semibold ${on ? 'text-white/80' : 'text-muted'}`}>
+                    {t.n}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+          {!q && isOwner && (
             <button
               type="button"
               onClick={() => {
@@ -343,9 +449,32 @@ export function FileManager({
             </button>
           )}
         </div>
+          <div className="flex shrink-0 rounded-lg border border-line p-0.5" role="group" aria-label="보기 방식">
+            {(
+              [
+                ['grid', '▦', '격자로 보기'],
+                ['list', '☰', '목록으로 보기'],
+              ] as const
+            ).map(([v, icon, label]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                aria-label={label}
+                title={label}
+                aria-pressed={view === v}
+                className={`grid h-7 w-8 place-items-center rounded-md text-[15px] transition ${
+                  view === v ? 'bg-ink text-white' : 'text-muted hover:text-ink'
+                }`}
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
-      {files.length === 0 ? (
+      {showFolders ? null : files.length === 0 ? (
         <p className="py-10 text-center text-[13px] text-muted">
           아직 올라온 파일이 없습니다.
           {isOwner ? ' 위에서 파일을 올려보세요.' : ''}
@@ -361,17 +490,133 @@ export function FileManager({
             </>
           )}
         </p>
-      ) : (
-        groups.map((g) => (
-        <div key={g.name || '_'} className="mb-2">
-          {groups.length > 1 && (
-            <div className="mt-3 flex items-center gap-2 border-b border-line pb-1.5 text-[13px] font-extrabold">
-              {g.name || '미분류'}
-              <span className="text-[12px] font-semibold text-muted">{g.items.length}</span>
+      ) : view === 'grid' && renaming === null ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 shell:grid-cols-5">
+          {shown.map((f) => (
+            <div
+              key={f.id}
+              className="relative flex flex-col overflow-hidden rounded-xl border border-line bg-white"
+            >
+              <button
+                type="button"
+                onClick={() => (canPreview(f, thumbs) ? setPreviewing(f) : undefined)}
+                className="block aspect-square w-full overflow-hidden bg-[#fbfaf8]"
+                title={canPreview(f, thumbs) ? '미리보기' : f.name}
+              >
+                {thumbs[f.id] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={thumbs[f.id]}
+                    alt={f.name}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition hover:scale-[1.03]"
+                  />
+                ) : (
+                  <span className="grid h-full w-full place-items-center text-[38px]">
+                    {fileIcon(f.name)}
+                  </span>
+                )}
+              </button>
+              <div className="flex flex-1 flex-col gap-1.5 p-2.5">
+                <div className="line-clamp-2 break-all text-[12.5px] font-semibold leading-snug" title={f.name}>
+                  {f.name}
+                </div>
+                <div className="text-[11px] text-muted">{humanSize(f.size)}</div>
+                <div className="mt-auto flex items-center gap-1">
+                  {urls[f.id] && (
+                    <a
+                      href={downloadUrl(urls[f.id], f.name)}
+                      download={f.name}
+                      className="btn-ghost flex-1 !px-2 !py-1 text-center !text-[11.5px]"
+                    >
+                      다운로드
+                    </a>
+                  )}
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuFor(menuFor === f.id ? null : f.id)
+                        setConfirming(null)
+                      }}
+                      aria-label="파일 관리"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[16px] font-bold text-muted hover:bg-line-soft hover:text-ink"
+                    >
+                      ⋯
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 관리 메뉴: 분류 이동 · 이름 · 삭제 */}
+              {isOwner && menuFor === f.id && (
+                <div className="absolute inset-x-1.5 bottom-1.5 z-10 rounded-lg border border-line bg-white p-2 shadow-lg">
+                  <label className="mb-1 block text-[11px] font-semibold text-muted">분류</label>
+                  <select
+                    value={f.category}
+                    onChange={(e) => {
+                      setMenuFor(null)
+                      setCategory(f, e.target.value)
+                    }}
+                    disabled={busy}
+                    className="mb-1.5 w-full rounded-md border border-line bg-white px-1.5 py-1 text-[12px] font-semibold"
+                  >
+                    <option value={UNCAT}>미분류</option>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                    <option value={NEW_CAT}>+ 새 분류…</option>
+                  </select>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuFor(null)
+                        setView('list')
+                        setRenaming(f.id)
+                        setDraftName(f.name)
+                      }}
+                      className="btn-ghost flex-1 !px-2 !py-1 !text-[11.5px]"
+                    >
+                      이름
+                    </button>
+                    {confirming === f.id ? (
+                      <button
+                        type="button"
+                        onClick={() => remove(f)}
+                        disabled={busy}
+                        className="btn flex-1 !bg-bad !px-2 !py-1 !text-[11.5px] hover:!bg-bad"
+                      >
+                        정말 삭제
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirming(f.id)}
+                        className="flex-1 rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted hover:bg-bad/10 hover:text-bad"
+                      >
+                        삭제
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setMenuFor(null)}
+                      aria-label="닫기"
+                      className="rounded-md px-1.5 text-[12px] text-muted hover:bg-line-soft"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          ))}
+        </div>
+      ) : (
         <div className="divide-y divide-line-soft">
-          {g.items.map((f) => (
+          {shown.map((f) => (
             <div key={f.id} className="flex items-center gap-3 py-3">
               {thumbs[f.id] ? (
                 // 이미지 원본 또는 AI·PDF 미리보기 썸네일 (누르면 미리보기)
@@ -534,8 +779,6 @@ export function FileManager({
             </div>
           ))}
         </div>
-        </div>
-        ))
       )}
 
       <p className="mt-3 text-[12px] leading-relaxed text-muted">
