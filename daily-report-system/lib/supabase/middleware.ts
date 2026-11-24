@@ -34,11 +34,12 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // getUser()는 토큰을 실제로 검증한다. getSession()과 달리 위조가 불가능하므로
-  // 인가 판단에는 반드시 이쪽을 쓴다.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // getClaims()는 토큰 서명을 프로젝트 공개키(ES256, JWKS)로 검증한다 — 위조 불가.
+  // 예전 getUser()는 페이지를 열 때마다 Supabase 인증 서버로 왕복을 보냈는데(느림),
+  // getClaims()는 공개키를 한 번 받아 캐시한 뒤 서버 안에서 바로 검증한다.
+  // 토큰이 만료됐으면 내부에서 갱신(그때만 네트워크)하고 쿠키도 새로 써 준다.
+  const { data: claimsData } = await supabase.auth.getClaims()
+  const user = claimsData?.claims?.sub ? claimsData.claims : null
 
   const { pathname } = request.nextUrl
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p))
