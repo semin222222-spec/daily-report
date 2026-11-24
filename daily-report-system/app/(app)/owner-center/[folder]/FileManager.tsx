@@ -5,9 +5,14 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { humanSize, type OcFile } from '@/lib/owner-center'
 import { canMakePreview, makePdfThumbnail } from '@/lib/pdf-thumb'
+import { isThumbableImage, makeImageThumbnail } from '@/lib/image-thumb'
 import { uploadResumable } from '@/lib/resumable-upload'
 
 const BUCKET = 'owner-center'
+/** 분류 탭 — '전체'와 '미분류'는 고정 값 */
+const ALL = '__all__'
+const UNCAT = ''
+const NEW_CAT = '__new__'
 
 /** 파일명에서 안전한 저장 경로를 만든다 (한글·공백·특수문자 처리) */
 function safePath(folder: string, name: string): string {
@@ -42,6 +47,20 @@ export function FileManager({
   const [confirming, setConfirming] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [previewing, setPreviewing] = useState<OcFile | null>(null)
+  const [tab, setTab] = useState<string>(ALL)
+  /** 방금 만든, 아직 파일이 없는 분류 (파일을 넣으면 DB에 생긴다) */
+  const [extraCats, setExtraCats] = useState<string[]>([])
+
+  // 분류 목록: 파일에 쓰인 분류를 개수와 함께, 가나다순. 미분류는 맨 뒤.
+  const catCounts = new Map<string, number>()
+  for (const c of extraCats) catCounts.set(c, 0)
+  for (const f of files) catCounts.set(f.category, (catCounts.get(f.category) ?? 0) + 1)
+  const categories = Array.from(catCounts.keys())
+    .filter((c) => c !== UNCAT)
+    .sort((a, b) => a.localeCompare(b, 'ko'))
+  const uncatCount = catCounts.get(UNCAT) ?? 0
+  // 지금 탭이 사라졌으면(마지막 파일을 옮겼을 때) 전체로
+  const activeTab = tab === ALL || catCounts.has(tab) ? tab : ALL
 
   // ESC로 미리보기 닫기 + 열려 있는 동안 배경 스크롤 잠금
   useEffect(() => {
@@ -60,9 +79,51 @@ export function FileManager({
 
   // 파일명으로 실시간 필터 (대소문자·공백 무시)
   const q = query.trim().toLowerCase()
+  // 검색 중에는 분류와 상관없이 전체에서 찾는다
   const shown = q
     ? files.filter((f) => f.name.toLowerCase().includes(q))
-    : files
+    : activeTab === ALL
+      ? files
+      : files.filter((f) => f.category === activeTab)
+
+  // '전체' 탭에서는 분류별로 묶어서 보여준다 (분류 순서 → 미분류)
+  const groups: { name: string; items: OcFile[] }[] =
+    !q && activeTab === ALL && categories.length > 0
+      ? [
+          ...categories.map((c) => ({ name: c, items: shown.filter((f) => f.category === c) })),
+          { name: UNCAT, items: shown.filter((f) => f.category === UNCAT) },
+        ].filter((g) => g.items.length > 0)
+      : [{ name: '', items: shown }]
+
+  /** 새 분류 이름을 묻는다. 취소하면 null */
+  function askNewCategory(): string | null {
+    const name = window.prompt('새 분류 이름 (예: 포스터, 간판)')?.trim()
+    return name ? name.slice(0, 30) : null
+  }
+
+  async function setCategory(f: OcFile, value: string) {
+    let category = value
+    if (value === NEW_CAT) {
+      const name = askNewCategory()
+      if (!name) return
+      category = name
+    }
+    if (category === f.category) return
+    setBusy(true)
+    setError('')
+    try {
+      const { error: upErr } = await createClient()
+        .from('oc_files')
+        .update({ category })
+        .eq('id', f.id)
+      if (upErr) throw upErr
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '분류 변경에 실패했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const chosen = Array.from(e.target.files ?? [])
@@ -96,6 +157,19 @@ export function FileManager({
           }
         }
 
+        // 이미지면 목록용 작은 썸네일을 만들어 함께 올린다 (원본은 목록에서 안 불러옴)
+        let thumbPath = ''
+        if (isThumbableImage(file.name)) {
+          const blob = await makeImageThumbnail(file)
+          if (blob) {
+            const tp = `${path}.thumb.jpg`
+            const { error: tErr } = await supabase.storage
+              .from(BUCKET)
+              .upload(tp, blob, { upsert: false, contentType: 'image/jpeg' })
+            if (!tErr) thumbPath = tp
+          }
+        }
+
         const { error: metaErr } = await supabase.from('oc_files').insert({
           folder,
           name: file.name.slice(0, 200),
@@ -103,6 +177,9 @@ export function FileManager({
           size: file.size,
           mime: file.type,
           preview_path: previewPath,
+          thumb_path: thumbPath,
+          // 분류 탭을 보고 있을 때 올리면 그 분류로 들어간다
+          category: activeTab === ALL ? UNCAT : activeTab,
         })
         if (metaErr) throw metaErr
       }
@@ -150,6 +227,7 @@ export function FileManager({
       // 원본 + 미리보기 PNG를 함께 지운다
       const paths = [f.path]
       if (f.preview_path) paths.push(f.preview_path)
+      if (f.thumb_path) paths.push(f.thumb_path)
       await supabase.storage.from(BUCKET).remove(paths)
       const { error: delErr } = await supabase
         .from('oc_files')
@@ -223,6 +301,50 @@ export function FileManager({
         </div>
       )}
 
+      {/* 분류 탭 — 검색 중에는 숨긴다(검색은 전체에서) */}
+      {!q && (categories.length > 0 || isOwner) && files.length > 0 && (
+        <div className="-mx-1 mb-1 flex gap-1.5 overflow-x-auto px-1 pb-2">
+          {[
+            { key: ALL, label: '전체', n: files.length },
+            ...categories.map((c) => ({ key: c, label: c, n: catCounts.get(c) ?? 0 })),
+            ...(uncatCount > 0 && categories.length > 0
+              ? [{ key: UNCAT, label: '미분류', n: uncatCount }]
+              : []),
+          ].map((t) => (
+            <button
+              key={t.key || '_'}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition ${
+                activeTab === t.key
+                  ? 'border-brand bg-brand text-white'
+                  : 'border-line bg-white text-ink-2 hover:border-brand/40'
+              }`}
+            >
+              {t.label}
+              <span className={`ml-1 font-semibold ${activeTab === t.key ? 'text-white/80' : 'text-muted'}`}>
+                {t.n}
+              </span>
+            </button>
+          ))}
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => {
+                const name = askNewCategory()
+                if (name) {
+                  setExtraCats((prev) => (prev.includes(name) ? prev : [...prev, name]))
+                  setTab(name)
+                }
+              }}
+              className="shrink-0 rounded-full border border-dashed border-line px-3 py-1.5 text-[12.5px] font-bold text-muted hover:border-brand/40 hover:text-brand"
+            >
+              + 분류
+            </button>
+          )}
+        </div>
+      )}
+
       {files.length === 0 ? (
         <p className="py-10 text-center text-[13px] text-muted">
           아직 올라온 파일이 없습니다.
@@ -230,11 +352,26 @@ export function FileManager({
         </p>
       ) : shown.length === 0 ? (
         <p className="py-10 text-center text-[13px] text-muted">
-          &lsquo;{query}&rsquo; 와 일치하는 파일이 없습니다.
+          {q ? (
+            <>&lsquo;{query}&rsquo; 와 일치하는 파일이 없습니다.</>
+          ) : (
+            <>
+              이 분류에는 아직 파일이 없습니다.
+              {isOwner && ' 지금 올리면 이 분류로 들어가고, 다른 파일은 분류 칸에서 옮길 수 있어요.'}
+            </>
+          )}
         </p>
       ) : (
+        groups.map((g) => (
+        <div key={g.name || '_'} className="mb-2">
+          {groups.length > 1 && (
+            <div className="mt-3 flex items-center gap-2 border-b border-line pb-1.5 text-[13px] font-extrabold">
+              {g.name || '미분류'}
+              <span className="text-[12px] font-semibold text-muted">{g.items.length}</span>
+            </div>
+          )}
         <div className="divide-y divide-line-soft">
-          {shown.map((f) => (
+          {g.items.map((f) => (
             <div key={f.id} className="flex items-center gap-3 py-3">
               {thumbs[f.id] ? (
                 // 이미지 원본 또는 AI·PDF 미리보기 썸네일 (누르면 미리보기)
@@ -306,8 +443,29 @@ export function FileManager({
                     {f.name}
                   </div>
                 )}
-                <div className="text-[12px] text-muted">
-                  {humanSize(f.size)} · {f.created_at.slice(0, 10)}
+                <div className="flex flex-wrap items-center gap-x-2 text-[12px] text-muted">
+                  <span>
+                    {humanSize(f.size)} · {f.created_at.slice(0, 10)}
+                  </span>
+                  {isOwner ? (
+                    <select
+                      value={f.category}
+                      onChange={(e) => setCategory(f, e.target.value)}
+                      disabled={busy}
+                      aria-label="분류"
+                      className="rounded-md border border-line bg-white px-1.5 py-0.5 text-[11.5px] font-semibold text-ink-2"
+                    >
+                      <option value={UNCAT}>미분류</option>
+                      {categories.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                      <option value={NEW_CAT}>+ 새 분류…</option>
+                    </select>
+                  ) : (
+                    q && f.category && <span className="pill">{f.category}</span>
+                  )}
                 </div>
               </div>
 
@@ -376,6 +534,8 @@ export function FileManager({
             </div>
           ))}
         </div>
+        </div>
+        ))
       )}
 
       <p className="mt-3 text-[12px] leading-relaxed text-muted">

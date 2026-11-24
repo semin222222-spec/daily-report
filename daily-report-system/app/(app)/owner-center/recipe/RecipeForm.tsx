@@ -9,14 +9,23 @@ import {
   type Recipe,
   type RecipeCategory,
 } from '@/lib/recipes'
+import { uploadResumable } from '@/lib/resumable-upload'
+import { VIDEO_MAX_BYTES, VIDEO_MAX_SECONDS, compressVideo, formatMB } from '@/lib/video-compress'
 import { addRecipe, updateRecipe } from './actions'
 
 const BUCKET = 'owner-center'
+
+/** 영상 선택 상태 — keep: 기존 유지, new: 새로 고름(변환 완료), remove: 지우기 */
+type VideoState =
+  | { kind: 'keep' }
+  | { kind: 'new'; file: File; url: string; note: string }
+  | { kind: 'remove' }
 
 export function RecipeForm({
   categories,
   recipe,
   photoUrl,
+  videoUrl,
   onDone,
 }: {
   categories: RecipeCategory[]
@@ -24,14 +33,56 @@ export function RecipeForm({
   recipe?: Recipe
   /** 수정 모드일 때 현재 사진의 서명 URL */
   photoUrl?: string
+  /** 수정 모드일 때 현재 영상의 서명 URL */
+  videoUrl?: string
   onDone: () => void
 }) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<string>(photoUrl ?? '')
   const [id] = useState(() => recipe?.id ?? crypto.randomUUID())
+  const [video, setVideo] = useState<VideoState>({ kind: 'keep' })
+  /** 변환·업로드 진행 안내 (빈 문자열이면 숨김) */
+  const [videoStatus, setVideoStatus] = useState('')
+  const [videoBusy, setVideoBusy] = useState(false)
+
+  const shownVideoUrl =
+    video.kind === 'new' ? video.url : video.kind === 'keep' ? videoUrl ?? '' : ''
+
+  async function onVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files?.[0]
+    e.target.value = '' // 같은 파일을 다시 골라도 동작하게
+    if (!picked) return
+    setError('')
+    setVideoBusy(true)
+    setVideoStatus('영상 확인 중…')
+    try {
+      const { file, compressed } = await compressVideo(picked, (r) =>
+        setVideoStatus(`용량 줄이는 중… ${Math.round(r * 100)}%`),
+      )
+      if (file.size > VIDEO_MAX_BYTES) {
+        throw new Error(
+          `영상이 ${formatMB(file.size)}로 너무 큽니다 (최대 ${formatMB(VIDEO_MAX_BYTES)}). ` +
+            (compressed
+              ? '영상을 더 짧게 잘라서 올려주세요.'
+              : '이 기기에서는 자동 압축이 안 돼요. 휴대폰 사진 앱에서 짧게 자르거나, 카메라 설정을 1080p로 낮춰 찍어주세요.'),
+        )
+      }
+      const note = compressed
+        ? `${formatMB(picked.size)} → ${formatMB(file.size)}로 줄였어요`
+        : `원본 그대로 ${formatMB(file.size)}`
+      setVideo({ kind: 'new', file, url: URL.createObjectURL(file), note })
+      setVideoStatus('')
+    } catch (err) {
+      setVideoStatus('')
+      setError(err instanceof Error ? err.message : '영상을 처리하지 못했습니다.')
+    } finally {
+      setVideoBusy(false)
+    }
+  }
 
   function pickPhoto() {
     fileRef.current?.click()
@@ -66,15 +117,36 @@ export function RecipeForm({
       }
       fd.set('photo_path', photoPath)
 
+      // 영상: 새로 골랐으면 올리고, 지우기를 눌렀으면 비운다. 이전 파일은 저장 후 정리.
+      const oldVideo = recipe?.video_path ?? ''
+      let videoPath = oldVideo
+      if (video.kind === 'new') {
+        const path = `recipe-videos/${id}-${Date.now()}.mp4`
+        setVideoStatus('영상 올리는 중… 0%')
+        await uploadResumable(createClient(), BUCKET, path, video.file, (r) =>
+          setVideoStatus(`영상 올리는 중… ${Math.round(r * 100)}%`),
+        )
+        videoPath = path
+      } else if (video.kind === 'remove') {
+        videoPath = ''
+      }
+      fd.set('video_path', videoPath)
+
       if (recipe) {
         await updateRecipe(fd)
       } else {
         await addRecipe(fd)
       }
+      if (oldVideo && oldVideo !== videoPath) {
+        // 바뀌었거나 지운 옛 영상은 저장소에서 지운다 (실패해도 저장 자체는 성공)
+        await createClient().storage.from(BUCKET).remove([oldVideo])
+      }
+      setVideoStatus('')
       router.refresh()
       onDone()
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
+      setVideoStatus('')
     } finally {
       setBusy(false)
     }
@@ -140,6 +212,55 @@ export function RecipeForm({
           <button type="button" onClick={pickPhoto} className="btn-ghost">
             사진 선택
           </button>
+        </div>
+      </div>
+
+      <div className="mt-3.5">
+        <label className="fld-label">조리 영상</label>
+        <p className="mb-2 text-[12px] text-muted">
+          휴대폰 영상을 그대로 고르면 720p로 자동으로 줄여서 올려요. 최대{' '}
+          {VIDEO_MAX_SECONDS / 60}분 · {formatMB(VIDEO_MAX_BYTES)}.
+        </p>
+        {shownVideoUrl && (
+          <video
+            src={shownVideoUrl}
+            controls
+            playsInline
+            preload="metadata"
+            className="mb-2 max-h-72 w-full max-w-sm rounded-lg border border-line bg-black"
+          />
+        )}
+        <input
+          ref={videoRef}
+          type="file"
+          accept="video/*"
+          onChange={onVideoChange}
+          className="hidden"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => videoRef.current?.click()}
+            className="btn-ghost"
+            disabled={busy || videoBusy}
+          >
+            {shownVideoUrl ? '영상 바꾸기' : '영상 선택'}
+          </button>
+          {shownVideoUrl && !videoBusy && (
+            <button
+              type="button"
+              onClick={() => setVideo({ kind: 'remove' })}
+              disabled={busy}
+              className="rounded-md px-2 py-1.5 text-[12px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
+            >
+              영상 지우기
+            </button>
+          )}
+          {videoStatus ? (
+            <span className="text-[12px] font-semibold text-brand-deep">{videoStatus}</span>
+          ) : (
+            video.kind === 'new' && <span className="text-[12px] text-good">{video.note}</span>
+          )}
         </div>
       </div>
 
@@ -213,8 +334,8 @@ export function RecipeForm({
         <button type="button" onClick={onDone} className="btn-ghost" disabled={busy}>
           취소
         </button>
-        <button type="submit" className="btn" disabled={busy}>
-          {busy ? '저장 중…' : '저장'}
+        <button type="submit" className="btn" disabled={busy || videoBusy}>
+          {busy ? '저장 중…' : videoBusy ? '영상 처리 중…' : '저장'}
         </button>
       </div>
     </form>

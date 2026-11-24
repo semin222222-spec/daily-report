@@ -13,12 +13,14 @@ export function RecipeDetail({
   categoryName,
   categories,
   photoUrl,
+  videoUrl,
   isOwner,
 }: {
   recipe: Recipe
   categoryName: string
   categories: RecipeCategory[]
   photoUrl: string
+  videoUrl: string
   isOwner: boolean
 }) {
   const router = useRouter()
@@ -63,6 +65,7 @@ export function RecipeDetail({
           categories={categories}
           recipe={recipe}
           photoUrl={photoUrl}
+          videoUrl={videoUrl}
           onDone={() => setEditing(false)}
         />
       </>
@@ -121,6 +124,19 @@ export function RecipeDetail({
           )}
         </div>
       </div>
+
+      {videoUrl && (
+        <div className="card mb-4 print:hidden">
+          <h3 className="card-title !mb-3">조리 영상</h3>
+          <video
+            src={videoUrl}
+            controls
+            playsInline
+            preload="metadata"
+            className="max-h-[70vh] w-full rounded-lg bg-black"
+          />
+        </div>
+      )}
 
       <div id="recipe-print-area">
         <RecipePrintSheet recipe={recipe} photoUrl={photoUrl} />

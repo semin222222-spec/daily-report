@@ -43,11 +43,15 @@ export default async function OwnerFolderPage({
       if (s.signedUrl) urls[files[i].id] = s.signedUrl
     })
 
-    // 썸네일로 쓸 경로: preview_path 우선, 없으면 이미지 원본
+    // 썸네일로 쓸 경로: 작은 썸네일 → AI·PDF 미리보기 → (작은 이미지만) 원본.
+    // 큰 원본(10~48MB)을 목록에서 불러오면 한참 걸리거나 안 떠서, 그때는 아이콘으로 둔다.
     const thumbTargets = files
       .map((f) => ({
         id: f.id,
-        path: f.preview_path || (isImageName(f.name) ? f.path : ''),
+        path:
+          f.thumb_path ||
+          f.preview_path ||
+          (isImageName(f.name) && f.size <= SMALL_IMAGE_BYTES ? f.path : ''),
       }))
       .filter((t) => t.path)
     if (thumbTargets.length > 0) {
@@ -92,6 +96,9 @@ export default async function OwnerFolderPage({
     </>
   )
 }
+
+/** 썸네일이 없을 때 원본을 목록에 그대로 써도 되는 크기 */
+const SMALL_IMAGE_BYTES = 1024 * 1024
 
 /** 브라우저가 바로 그릴 수 있는 이미지 확장자 */
 function isImageName(name: string): boolean {

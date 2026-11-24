@@ -71,6 +71,7 @@ function recipeFields(formData: FormData) {
     notes,
     prep,
     photo_path: String(formData.get('photo_path') ?? '').trim().slice(0, 300),
+    video_path: String(formData.get('video_path') ?? '').trim().slice(0, 300),
   }
 }
 
@@ -110,6 +111,13 @@ export async function deleteRecipe(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await assertOwner()
+  const { data: row } = await supabase
+    .from('recipes')
+    .select('video_path')
+    .eq('id', id)
+    .maybeSingle()
   await supabase.from('recipes').delete().eq('id', id)
+  // 영상은 용량이 커서 레시피와 함께 지운다
+  if (row?.video_path) await supabase.storage.from('owner-center').remove([row.video_path])
   revalidatePath('/owner-center/recipe')
 }

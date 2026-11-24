@@ -74,7 +74,7 @@ export default async function ExecutivePage() {
     const targets = files
       .map((f) => ({
         id: f.id,
-        path: f.preview_path || (isImg(f.name) ? f.path : ''),
+        path: f.thumb_path || f.preview_path || (isImg(f.name) ? f.path : ''),
       }))
       .filter((t) => t.path)
     if (targets.length > 0) {

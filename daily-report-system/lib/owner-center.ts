@@ -31,6 +31,10 @@ export interface OcFile {
   mime: string
   /** AI·PDF 업로드 시 만든 미리보기 PNG 경로 (없으면 빈 문자열) */
   preview_path: string
+  /** 목록용 작은 JPEG 썸네일 (긴 변 320px). 없으면 빈 문자열 — 032 마이그레이션 */
+  thumb_path: string
+  /** 폴더 안 세부 분류. 빈 문자열이면 미분류 — 032 마이그레이션 */
+  category: string
   created_at: string
 }
 

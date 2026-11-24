@@ -55,7 +55,7 @@ export default async function RecipeHome() {
     })
 
     const thumbTargets = files
-      .map((f) => ({ id: f.id, path: f.preview_path || (isImageName(f.name) ? f.path : '') }))
+      .map((f) => ({ id: f.id, path: f.thumb_path || f.preview_path || (isImageName(f.name) ? f.path : '') }))
       .filter((t) => t.path)
     if (thumbTargets.length > 0) {
       const th = await supabase.storage

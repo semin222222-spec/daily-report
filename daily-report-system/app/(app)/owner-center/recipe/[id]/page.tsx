@@ -36,12 +36,21 @@ export default async function RecipeDetailPage({
     photoUrl = data?.signedUrl ?? ''
   }
 
+  let videoUrl = ''
+  if (recipe.video_path) {
+    const { data } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(recipe.video_path, 60 * 60 * 6) // 영상은 보다가 만료되지 않게 넉넉히
+    videoUrl = data?.signedUrl ?? ''
+  }
+
   return (
     <RecipeDetail
       recipe={recipe}
       categoryName={category?.name ?? ''}
       categories={categories}
       photoUrl={photoUrl}
+      videoUrl={videoUrl}
       isOwner={isOwner}
     />
   )

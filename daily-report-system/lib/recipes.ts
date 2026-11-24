@@ -33,6 +33,8 @@ export interface Recipe {
   notes: string[]
   prep: RecipePrep[]
   photo_path: string
+  /** 조리 영상 storage 경로 (owner-center 버킷). 빈 문자열이면 없음 — 031 마이그레이션 */
+  video_path: string
   sort_order: number
   created_at: string
   updated_at: string
