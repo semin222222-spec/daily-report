@@ -42,8 +42,55 @@
   body {
     @apply m-0 p-0;
   }
+  html {
+    /* 가로로 돌렸을 때 iOS가 글자를 멋대로 키우지 않게 */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
   body {
     @apply bg-page text-ink antialiased;
+    /* 누를 때 회색 사각형이 번쩍이는 기본 효과 제거 (대신 :active 효과를 준다) */
+    -webkit-tap-highlight-color: transparent;
+    /* 한국어를 "정 / 산"처럼 글자 중간에서 자르지 않고 단어(띄어쓰기) 단위로 줄바꿈.
+       띄어쓰기 없는 긴 파일명 등은 overflow-wrap으로 넘치지 않게 잘라 준다. */
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  /* 두 번 탭 확대 대기(지연) 없이 바로 반응 */
+  a,
+  button,
+  select,
+  label,
+  input,
+  textarea,
+  summary {
+    touch-action: manipulation;
+  }
+  /* PC에서 키보드(Tab)로 이동할 때 지금 어디에 있는지 보이게. 마우스 클릭엔 안 뜬다. */
+  a:focus-visible,
+  button:focus-visible,
+  select:focus-visible,
+  summary:focus-visible,
+  [role='button']:focus-visible {
+    outline: 2px solid #f0542d;
+    outline-offset: 2px;
+  }
+  /* 모바일 하단 메뉴 높이 — 하단에 붙는 저장 바 등이 이만큼 위로 비켜선다.
+     데스크톱(사이드바 화면)에서는 0. */
+  :root {
+    --mnav: 0px;
+  }
+  @media (max-width: 880px) {
+    :root {
+      --mnav: calc(58px + env(safe-area-inset-bottom));
+    }
+    /* 입력 중(키보드가 올라온 상태)에는 하단 메뉴를 숨겨 화면을 넓게 쓴다 */
+    :root[data-typing='1'] {
+      --mnav: 0px;
+    }
+    :root[data-typing='1'] .mnav {
+      transform: translateY(100%);
+    }
   }
   /* 숫자를 표에서 자릿수 맞춰 읽으려면 tabular-nums가 필수 */
   input[type='number']::-webkit-outer-spin-button,
@@ -74,8 +121,9 @@
     @apply mt-2 whitespace-nowrap text-[19px] font-extrabold tracking-[-0.02em]
            tabular-nums sm:text-[22px] shell:text-[27px];
   }
+  /* 폰에서는 바깥 여백이 아까워서 안쪽 여백을 조금 줄인다 */
   .card {
-    @apply rounded-card border border-line bg-surface p-5 shadow-card;
+    @apply rounded-card border border-line bg-surface p-4 shadow-card sm:p-5;
   }
   .card-title {
     @apply m-0 mb-0.5 text-[15.5px] font-bold;
@@ -115,17 +163,29 @@
            transition hover:border-brand hover:text-ink
            disabled:cursor-not-allowed disabled:opacity-50;
   }
+  /* 누르는 순간 살짝 눌리는 느낌 — 폰에서 "눌렸다"를 바로 알 수 있게 */
+  .btn:active:not(:disabled),
+  .btn-ghost:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  /* 폰에서는 하단 버튼들이 가로를 나눠 가져 엄지로 누르기 쉽게 */
   .btn-row {
     @apply mt-5 flex justify-end gap-2.5;
+  }
+  @media (max-width: 640px) {
+    .btn-row > .btn,
+    .btn-row > .btn-ghost {
+      flex: 1 1 0;
+    }
   }
 
   /* ── 표 ────────────────────────────────────── */
   .tbl {
-    @apply w-full border-collapse text-[13.5px];
+    @apply w-full border-collapse text-[13px] sm:text-[13.5px];
   }
   .tbl th,
   .tbl td {
-    @apply px-2 py-2.5 text-right;
+    @apply px-1.5 py-2.5 text-right sm:px-2;
   }
   .tbl th:first-child,
   .tbl td:first-child {
@@ -139,6 +199,12 @@
   }
   .tbl tbody tr:last-child td {
     @apply border-b-0;
+  }
+  /* 마우스가 있는 PC: 읽고 있는 줄을 살짝 강조해 옆 칸 숫자를 놓치지 않게 */
+  @media (hover: hover) {
+    .tbl tbody tr:hover td {
+      background: #fbfaf8;
+    }
   }
   .pl-total td {
     @apply border-b-0 border-t-2 border-line font-extrabold;
@@ -167,6 +233,16 @@
   }
   .bar > span {
     @apply block h-full rounded-md bg-brand;
+  }
+}
+
+@layer utilities {
+  /* 가로로 넘기는 칩 줄 등 — 스크롤은 되지만 막대는 안 보이게 */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 

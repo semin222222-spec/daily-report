@@ -435,7 +435,7 @@ export function OpenChecklist({
               <button
                 type="button"
                 onClick={() => setEditingList(true)}
-                className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
+                className="rounded-md px-2.5 py-2 text-[12.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
               >
                 수정
               </button>
@@ -443,7 +443,7 @@ export function OpenChecklist({
                 <input type="hidden" name="id" value={current.id} />
                 <button
                   type="submit"
-                  className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
+                  className="rounded-md px-2.5 py-2 text-[12.5px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
                 >
                   삭제
                 </button>
@@ -461,7 +461,7 @@ export function OpenChecklist({
           </span>
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-2.5 text-center">
+        <div className="mt-3 grid grid-cols-2 gap-2.5 text-center sm:grid-cols-3">
           <div>
             <div className="text-[11.5px] text-muted">진행률</div>
             <div className="text-[15px] font-extrabold tabular-nums">
@@ -474,7 +474,7 @@ export function OpenChecklist({
               {num(rows.length - doneCount)}건
             </div>
           </div>
-          <div>
+          <div className="col-span-2 sm:col-span-1">
             <div className="text-[11.5px] text-muted">예상 비용</div>
             <div className="text-[15px] font-extrabold tabular-nums">
               {won(totalCost)}
@@ -573,14 +573,14 @@ export function OpenChecklist({
                         <button
                           type="button"
                           onClick={() => setEditingTask(t.id)}
-                          className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
+                          className="rounded-md px-2.5 py-2 text-[12.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
                         >
                           수정
                         </button>
                         <button
                           type="button"
                           onClick={() => removeTask(t.id)}
-                          className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
+                          className="rounded-md px-2.5 py-2 text-[12.5px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
                         >
                           삭제
                         </button>

@@ -399,7 +399,7 @@ export function FileManager({
       {/* 분류 안: 분류 바로가기 칩 + 목록/격자 전환 */}
       {!showFolders && files.length > 0 && (
         <div className="mb-2 flex items-start gap-2">
-        <div className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 pb-2">
+        <div className="no-scrollbar -mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 pb-2">
           {!q && [
             ...(categories.length > 0
               ? [{ key: ALL, label: '← 분류', n: -1 }]
@@ -463,7 +463,7 @@ export function FileManager({
                 aria-label={label}
                 title={label}
                 aria-pressed={view === v}
-                className={`grid h-7 w-8 place-items-center rounded-md text-[15px] transition ${
+                className={`grid h-9 w-10 place-items-center rounded-md text-[15px] transition sm:h-7 sm:w-8 ${
                   view === v ? 'bg-ink text-white' : 'text-muted hover:text-ink'
                 }`}
               >
@@ -540,7 +540,7 @@ export function FileManager({
                         setConfirming(null)
                       }}
                       aria-label="파일 관리"
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[16px] font-bold text-muted hover:bg-line-soft hover:text-ink"
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-[16px] font-bold text-muted hover:bg-line-soft hover:text-ink sm:h-7 sm:w-7"
                     >
                       ⋯
                     </button>
@@ -617,7 +617,8 @@ export function FileManager({
       ) : (
         <div className="divide-y divide-line-soft">
           {shown.map((f) => (
-            <div key={f.id} className="flex items-center gap-3 py-3">
+            // 폰: [썸네일 | 이름] 한 줄, 버튼들은 다음 줄로 내려간다. PC: 한 줄.
+            <div key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3 sm:flex-nowrap">
               {thumbs[f.id] ? (
                 // 이미지 원본 또는 AI·PDF 미리보기 썸네일 (누르면 미리보기)
                 <button
@@ -639,7 +640,7 @@ export function FileManager({
                   {fileIcon(f.name)}
                 </div>
               )}
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-[calc(100%-68px)] sm:basis-0">
                 {renaming === f.id ? (
                   <form
                     onSubmit={(e) => {
@@ -698,7 +699,7 @@ export function FileManager({
                       onChange={(e) => setCategory(f, e.target.value)}
                       disabled={busy}
                       aria-label="분류"
-                      className="rounded-md border border-line bg-white px-1.5 py-0.5 text-[11.5px] font-semibold text-ink-2"
+                      className="rounded-md border border-line bg-white px-2 py-1.5 text-[12px] font-semibold text-ink-2 sm:px-1.5 sm:py-0.5 sm:text-[11.5px]"
                     >
                       <option value={UNCAT}>미분류</option>
                       {categories.map((c) => (
@@ -714,6 +715,7 @@ export function FileManager({
                 </div>
               </div>
 
+              <div className="flex w-full items-center justify-end gap-1 sm:w-auto sm:shrink-0">
               {canPreview(f, thumbs) && urls[f.id] && (
                 <button
                   type="button"
@@ -741,7 +743,7 @@ export function FileManager({
                     setRenaming(f.id)
                     setDraftName(f.name)
                   }}
-                  className="rounded-md px-2 py-1.5 text-[12px] font-semibold text-muted transition hover:bg-brand/10 hover:text-brand"
+                  className="rounded-md px-3 py-2.5 text-[12px] font-semibold text-muted transition hover:bg-brand/10 hover:text-brand sm:px-2 sm:py-1.5"
                 >
                   이름
                 </button>
@@ -771,11 +773,12 @@ export function FileManager({
                   <button
                     type="button"
                     onClick={() => setConfirming(f.id)}
-                    className="rounded-md px-2 py-1.5 text-[12px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
+                    className="rounded-md px-3 py-2.5 text-[12px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad sm:px-2 sm:py-1.5"
                   >
                     삭제
                   </button>
                 ))}
+              </div>
             </div>
           ))}
         </div>
@@ -880,7 +883,7 @@ function PreviewModal({
       role="dialog"
       aria-modal="true"
       aria-label={`${file.name} 미리보기`}
-      className="fixed inset-0 z-50 flex flex-col bg-black/80 p-3 sm:p-6"
+      className="fixed inset-0 z-50 flex flex-col bg-black/80 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6"
       onClick={onClose}
     >
       <div

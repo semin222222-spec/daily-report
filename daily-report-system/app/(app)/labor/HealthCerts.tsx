@@ -67,6 +67,44 @@ export function HealthCerts({ staff }: { staff: Staff[] }) {
     })
   }
 
+  function edit(id: string, cur: CertState, patch: Partial<CertState>) {
+    setState((v) => ({ ...v, [id]: { ...cur, ...patch } }))
+  }
+
+  // 표·카드 공용 입력칸 / 저장 버튼
+  const issuedInput = (id: string, cur: CertState, className: string) => (
+    <input
+      type="date"
+      value={cur.issued}
+      onChange={(e) => edit(id, cur, { issued: e.target.value })}
+      aria-label="발급일"
+      className={`fld-input ${className}`}
+    />
+  )
+  const memoInput = (id: string, cur: CertState, className: string) => (
+    <input
+      value={cur.memo}
+      onChange={(e) => edit(id, cur, { memo: e.target.value })}
+      placeholder="예: 재발급 예약함"
+      aria-label="메모"
+      className={`fld-input ${className}`}
+    />
+  )
+  const flashText = (id: string) =>
+    flash[id] && (
+      <span className="text-[11.5px] font-semibold text-good">{flash[id]}</span>
+    )
+  const saveButton = (id: string, className: string) => (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() => save(id)}
+      className={`btn-ghost ${className}`}
+    >
+      저장
+    </button>
+  )
+
   // 만료·임박한 사람을 위로 올려서 눈에 먼저 띄게 한다
   const sorted = [...staff].sort((a, b) => {
     const la = state[a.id]?.issued
@@ -104,8 +142,48 @@ export function HealthCerts({ staff }: { staff: Staff[] }) {
         </p>
       )}
 
+      {/* 휴대폰: 사람마다 카드 한 장 */}
       {staff.length > 0 && (
-        <div className="overflow-x-auto">
+        <div className="space-y-2.5 shell:hidden">
+          {sorted.map((s) => {
+            const cur = state[s.id] ?? { issued: '', memo: '' }
+            const st = statusOf(cur.issued, today)
+            return (
+              <div key={s.id} className="rounded-[12px] border border-line p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="font-semibold">{s.name}</span>{' '}
+                    <span className="text-[12px] text-muted">{s.emp_type}</span>
+                  </div>
+                  <span className={`pill shrink-0 ${st.className}`}>{st.label}</span>
+                </div>
+
+                <div className="mt-2.5">
+                  <div className="mb-1 flex items-baseline justify-between gap-2">
+                    <span className="fld-label !mb-0">발급일</span>
+                    <span className="text-[12px] tabular-nums text-muted">
+                      만료일 {cur.issued ? expiryOf(cur.issued) : '—'}
+                    </span>
+                  </div>
+                  {issuedInput(s.id, cur, '')}
+                </div>
+                <div className="mt-2">
+                  <span className="fld-label">메모</span>
+                  {memoInput(s.id, cur, '')}
+                </div>
+
+                <div className="mt-2.5 flex items-center gap-2">
+                  {flashText(s.id)}
+                  {saveButton(s.id, 'flex-1')}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {staff.length > 0 && (
+        <div className="hidden overflow-x-auto shell:block">
           <table className="tbl">
             <thead>
               <tr>
@@ -126,53 +204,18 @@ export function HealthCerts({ staff }: { staff: Staff[] }) {
                   <tr key={s.id}>
                     <td className="font-semibold">{s.name}</td>
                     <td>{s.emp_type}</td>
-                    <td>
-                      <input
-                        type="date"
-                        value={cur.issued}
-                        onChange={(e) =>
-                          setState((v) => ({
-                            ...v,
-                            [s.id]: { ...cur, issued: e.target.value },
-                          }))
-                        }
-                        className="fld-input !py-1.5 !text-[12.5px]"
-                      />
-                    </td>
+                    <td>{issuedInput(s.id, cur, '!py-1.5 !text-[12.5px]')}</td>
                     <td className="tabular-nums text-ink-2">
                       {cur.issued ? expiryOf(cur.issued) : '—'}
                     </td>
                     <td>
                       <span className={`pill ${st.className}`}>{st.label}</span>
                     </td>
-                    <td>
-                      <input
-                        value={cur.memo}
-                        onChange={(e) =>
-                          setState((v) => ({
-                            ...v,
-                            [s.id]: { ...cur, memo: e.target.value },
-                          }))
-                        }
-                        placeholder="예: 재발급 예약함"
-                        className="fld-input !py-1.5 !text-[12.5px]"
-                      />
-                    </td>
+                    <td>{memoInput(s.id, cur, '!py-1.5 !text-[12.5px]')}</td>
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {flash[s.id] && (
-                          <span className="text-[11.5px] font-semibold text-good">
-                            {flash[s.id]}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          disabled={pending}
-                          onClick={() => save(s.id)}
-                          className="btn-ghost !px-3 !py-1.5 !text-xs"
-                        >
-                          저장
-                        </button>
+                        {flashText(s.id)}
+                        {saveButton(s.id, '!px-3 !py-1.5 !text-xs')}
                       </div>
                     </td>
                   </tr>

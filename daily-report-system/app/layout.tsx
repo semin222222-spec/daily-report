@@ -59,6 +59,8 @@ export const viewport: Viewport = {
   // 앱처럼 쓸 때 확대/축소를 막아 데스크톱 앱 느낌을 준다
   maximumScale: 1,
   userScalable: false,
+  // 아이폰 노치·홈 바 영역까지 화면을 쓰고, 그만큼은 env(safe-area-inset-*)로 비켜 준다
+  viewportFit: 'cover',
   themeColor: '#191512',
 }
 

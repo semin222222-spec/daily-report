@@ -37,7 +37,54 @@ export function AppShell({
     setSideOpen(false)
   }, [pathname])
 
+  // 모바일 사이드바가 열려 있는 동안: 뒤 화면 스크롤 잠금 + ESC로 닫기
+  useEffect(() => {
+    if (!sideOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSideOpen(false)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [sideOpen])
+
+  // 글자를 입력하는 동안(키보드가 올라와 있을 때)은 하단 메뉴를 숨긴다.
+  // 키보드 위에 메뉴가 떠서 입력칸을 가리는 걸 막는다. (globals.css의 data-typing)
+  useEffect(() => {
+    const isTextField = (el: EventTarget | null) =>
+      el instanceof HTMLElement &&
+      (el.tagName === 'TEXTAREA' ||
+        el.isContentEditable ||
+        (el.tagName === 'INPUT' &&
+          !['checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color'].includes(
+            (el as HTMLInputElement).type,
+          )))
+    const onIn = (e: FocusEvent) => {
+      if (isTextField(e.target)) document.documentElement.dataset.typing = '1'
+    }
+    const onOut = () => {
+      // 다음 칸으로 바로 옮겨가는 경우 깜빡이지 않게 한 박자 늦게 확인
+      setTimeout(() => {
+        if (!isTextField(document.activeElement)) delete document.documentElement.dataset.typing
+      }, 50)
+    }
+    document.addEventListener('focusin', onIn)
+    document.addEventListener('focusout', onOut)
+    return () => {
+      document.removeEventListener('focusin', onIn)
+      document.removeEventListener('focusout', onOut)
+      delete document.documentElement.dataset.typing
+    }
+  }, [])
+
   const isOwner = profile.role === 'owner'
+
+  // 하단 메뉴: 자주 쓰는 화면 4개 (이 계정에 보이는 것 중에서) + 전체 메뉴
+  const tabItems = BOTTOM_TABS.map((href) => navItems.find((n) => n.href === href)).filter(
+    (n): n is NavItem => Boolean(n),
+  ).slice(0, 4)
 
   return (
     <div className="min-h-screen shell:grid shell:grid-cols-[248px_1fr]">
@@ -52,9 +99,12 @@ export function AppShell({
 
       {/* ── 사이드바 ────────────────────────────── */}
       <aside
-        className={`fixed z-50 flex h-screen w-[248px] flex-col bg-brand-ink px-4 py-5 text-white
-                    transition-[left] duration-[250ms] shell:sticky shell:top-0 shell:left-0
-                    ${sideOpen ? 'left-0' : '-left-[260px]'}`}
+        className={`fixed top-0 z-50 flex h-[100dvh] w-[min(82vw,280px)] flex-col overscroll-contain
+                    bg-brand-ink px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]
+                    pt-[max(1.25rem,env(safe-area-inset-top))] text-white
+                    transition-transform duration-[250ms] ease-out
+                    shell:sticky shell:w-[248px] shell:translate-x-0 shell:pt-5
+                    ${sideOpen ? 'left-0 translate-x-0 shadow-land' : 'left-0 -translate-x-[105%]'}`}
       >
         <div className="flex items-center gap-2.5 px-2 pb-[18px] pt-1.5">
           <div>
@@ -71,14 +121,14 @@ export function AppShell({
           매장정산
         </div>
 
-        <nav className="flex flex-col overflow-y-auto">
+        <nav className="-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto px-1">
           {navItems.map((item) => {
             const active = isNavActive(pathname, item.href)
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`mb-0.5 flex w-full items-center gap-[11px] rounded-[11px] px-3 py-2.5
+                className={`mb-0.5 flex w-full shrink-0 items-center gap-[11px] rounded-[11px] px-3 py-3 shell:py-2.5
                             text-sm font-semibold transition ${
                               active
                                 ? 'bg-brand text-white'
@@ -94,7 +144,7 @@ export function AppShell({
           })}
         </nav>
 
-        <div className="mt-auto border-t border-white/10 pt-3">
+        <div className="mt-3 shrink-0 border-t border-white/10 pt-3">
           <div className="px-2.5 py-1 text-[12.5px] text-white/80">
             👤 <b className="text-white">{profile.name}</b>
             <br />
@@ -121,24 +171,26 @@ export function AppShell({
       {/* ── 메인 ────────────────────────────────── */}
       <div className="flex min-w-0 flex-col">
         <header
-          className="sticky top-0 z-30 flex items-center gap-4 border-b border-line
-                     bg-page/85 px-4 py-3.5 backdrop-blur-lg shell:px-[26px]"
+          className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-page/85
+                     pb-2.5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]
+                     pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-lg
+                     shell:gap-4 shell:px-[26px] shell:py-3.5"
         >
           <button
             type="button"
             onClick={() => setSideOpen(true)}
             aria-label="메뉴 열기"
-            className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[9px]
-                       border border-line bg-white text-lg shell:hidden"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px]
+                       border border-line bg-white text-lg active:scale-95 shell:hidden"
           >
             ☰
           </button>
 
           <div className="min-w-0">
-            <h1 className="m-0 truncate text-[19px] font-extrabold">
+            <h1 className="m-0 truncate text-[17px] font-extrabold shell:text-[19px]">
               {navLabel(pathname)}
             </h1>
-            <div className="text-[13px] text-muted">
+            <div className="text-[12px] text-muted shell:text-[13px]">
               {formatDateKo(todayKST())}
             </div>
           </div>
@@ -223,10 +275,68 @@ export function AppShell({
           )}
         </header>
 
-        <div className="w-full max-w-[1180px] px-4 pb-[60px] pt-6 shell:px-[26px]">
+        <div
+          className="w-full max-w-[1180px] pb-[calc(60px+var(--mnav))] pl-[max(1rem,env(safe-area-inset-left))]
+                     pr-[max(1rem,env(safe-area-inset-right))] pt-4 shell:px-[26px] shell:pb-[60px] shell:pt-6"
+        >
           {children}
         </div>
       </div>
+
+      {/* ── 하단 메뉴 (모바일) ─────────────────────
+          자주 쓰는 화면은 엄지로 바로. 나머지는 '전체'로 사이드바를 연다.
+          글자 입력 중에는 숨긴다(data-typing). */}
+      <nav
+        aria-label="주요 메뉴"
+        className="mnav fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)]
+                   backdrop-blur-lg transition-transform duration-200 shell:hidden"
+      >
+        <div className="mx-auto flex h-[58px] max-w-[560px] items-stretch">
+          {tabItems.map((item) => {
+            const active = isNavActive(pathname, item.href)
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[10.5px] font-bold
+                            transition active:scale-95 ${active ? 'text-brand' : 'text-muted'}`}
+              >
+                {active && (
+                  <span className="absolute top-0 h-[3px] w-8 rounded-b-full bg-brand" aria-hidden />
+                )}
+                <span className={`text-[19px] leading-none ${active ? '' : 'opacity-70 grayscale'}`}>
+                  {item.icon}
+                </span>
+                {SHORT_LABEL[item.href] ?? item.label}
+              </Link>
+            )
+          })}
+          <button
+            type="button"
+            onClick={() => setSideOpen(true)}
+            className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[10.5px] font-bold transition active:scale-95 ${
+              tabItems.some((t) => isNavActive(pathname, t.href)) ? 'text-muted' : 'text-brand'
+            }`}
+          >
+            <span className="text-[19px] leading-none">☰</span>
+            전체
+          </button>
+        </div>
+      </nav>
     </div>
   )
+}
+
+/** 하단 메뉴에 올릴 화면 (앞에서부터, 권한으로 보이는 것만 최대 4개) */
+const BOTTOM_TABS = ['/dashboard', '/closing', '/closing-log', '/todos', '/reservations', '/schedule']
+
+/** 하단 메뉴는 폭이 좁아 짧은 이름을 쓴다 */
+const SHORT_LABEL: Record<string, string> = {
+  '/dashboard': '홈',
+  '/closing': '일마감',
+  '/closing-log': '마감일지',
+  '/todos': '할일',
+  '/reservations': '예약',
+  '/schedule': '스케줄',
 }

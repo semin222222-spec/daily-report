@@ -156,14 +156,14 @@ export function ReservationList({
                     <button
                       type="button"
                       onClick={() => setEditing(r.id)}
-                      className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
+                      className="rounded-md px-3 py-2 text-[13px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink sm:px-2 sm:py-1 sm:text-[11.5px]"
                     >
                       수정
                     </button>
                     <button
                       type="button"
                       onClick={() => remove(r.id)}
-                      className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
+                      className="rounded-md px-3 py-2 text-[13px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad sm:px-2 sm:py-1 sm:text-[11.5px]"
                     >
                       삭제
                     </button>
@@ -195,7 +195,7 @@ export function ReservationList({
                         key={s.value}
                         type="button"
                         onClick={() => changeStatus(r.id, s.value)}
-                        className={`flex-1 px-2 py-1.5 text-[12px] font-bold transition ${
+                        className={`flex-1 px-1 py-2.5 text-[12px] sm:px-2 sm:py-1.5 font-bold transition ${
                           active
                             ? s.active
                             : 'bg-white text-ink-2 hover:bg-line-soft'

@@ -83,7 +83,7 @@ export default async function DailyReportPage({
   return (
     <>
       {/* 날짜 이동 */}
-      <div className="mb-4 flex items-center justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <Link href={`/daily?date=${prev}`} className="btn-ghost !py-2 text-[13px]">
           ← 전날
         </Link>

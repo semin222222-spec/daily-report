@@ -58,7 +58,8 @@ export default async function LoginPage({
 
   return (
     <main
-      className="flex min-h-screen items-center justify-center px-5 py-8"
+      className="flex min-h-[100dvh] items-center justify-center px-4 pb-[max(2rem,env(safe-area-inset-bottom))]
+                 pt-[max(1.5rem,env(safe-area-inset-top))] shell:px-5 shell:py-8"
       style={{
         background:
           'radial-gradient(1200px 600px at 80% -10%, rgba(240,84,45,.22), transparent 60%),' +
@@ -72,15 +73,16 @@ export default async function LoginPage({
                    shell:grid-cols-[1.15fr_.85fr]"
       >
         {/* ── 좌: 브랜드 ─────────────────────────── */}
-        <div className="flex flex-col justify-center px-7 py-10 text-white shell:px-[46px] shell:py-[52px]">
-          <div className="mb-5 text-[15px] font-bold tracking-[.28em] text-white/60 shell:text-[16px]">
+        {/* 폰에서는 로그인 칸이 첫 화면에 바로 보이도록 브랜드 영역을 작게 */}
+        <div className="flex flex-col justify-center px-6 pb-6 pt-7 text-white shell:px-[46px] shell:py-[52px]">
+          <div className="mb-3 text-[13px] font-bold tracking-[.28em] text-white/60 shell:mb-5 shell:text-[16px]">
             주식회사 삐딱
           </div>
 
           <BrandLockup
             src={srcOf('bbiddak')}
-            symbolSize={62}
-            textSize={46}
+            symbolSize={46}
+            textSize={34}
             className="shell:hidden"
           />
           <BrandLockup
@@ -90,16 +92,19 @@ export default async function LoginPage({
             className="hidden shell:inline-flex"
           />
 
-          <p className="mt-5 text-[15px] leading-relaxed text-white/70">
+          <p className="mt-3 text-[13.5px] leading-relaxed text-white/70 shell:mt-5 shell:text-[15px]">
             매출과 손익을 한 곳에서 관리하는
-            <br />삐딱 전용 정산 시스템
+            <br className="hidden shell:block" />
+            <span className="shell:hidden"> </span>삐딱 전용 정산 시스템
           </p>
 
-          <div className="mt-9 flex flex-wrap gap-2.5">
+          {/* 매장 목록: 폰에서는 한 줄 가로 스크롤, PC에서는 여러 줄 */}
+          <div className="no-scrollbar -mx-6 mt-5 flex gap-2 overflow-x-auto px-6 pb-1 shell:mx-0 shell:mt-9 shell:flex-wrap shell:gap-2.5 shell:overflow-visible shell:px-0">
+
             {stores.map((s) => (
               <div
                 key={s.id}
-                className={`flex items-center gap-[9px] rounded-full border py-[9px] pl-2.5 pr-4 ${
+                className={`flex shrink-0 items-center gap-[9px] rounded-full border py-[7px] pl-2 pr-3.5 shell:py-[9px] shell:pl-2.5 shell:pr-4 ${
                   s.kind === 'main'
                     ? 'border-brand/45 bg-brand/[.16]'
                     : 'border-white/10 bg-white/[.06]'

@@ -611,7 +611,7 @@ export function EquipOrders({
                 setSelected(o.id)
                 setEditingItem(null)
               }}
-              className={`rounded-[10px] border px-3 py-1.5 text-[13px] font-bold transition ${
+              className={`max-w-full truncate rounded-[10px] border px-3 py-1.5 text-[13px] font-bold transition ${
                 active
                   ? 'border-brand bg-brand text-white'
                   : 'border-line bg-white text-ink-2 hover:border-brand/50 hover:text-ink'
@@ -644,7 +644,7 @@ export function EquipOrders({
           <div className="flex flex-wrap gap-1">
             {isOwner && (
               <>
-                <button type="button" onClick={() => setMode('edit')} className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">
+                <button type="button" onClick={() => setMode('edit')} className="rounded-md px-2.5 py-2 text-[12.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink">
                   수정
                 </button>
                 <form
@@ -654,7 +654,7 @@ export function EquipOrders({
                   }}
                 >
                   <input type="hidden" name="id" value={current.id} />
-                  <button type="submit" className="rounded-md px-2 py-1 text-[11.5px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad">
+                  <button type="submit" className="rounded-md px-2.5 py-2 text-[12.5px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad">
                     삭제
                   </button>
                 </form>
@@ -738,15 +738,15 @@ export function EquipOrders({
               </span>
               <span className="flex flex-wrap gap-1 [&>button]:whitespace-nowrap">
                 {isOwner && (
-                  <button type="button" onClick={() => setMode('links')} className="rounded-md px-1.5 py-0.5 font-semibold text-brand-deep hover:bg-brand/10">
+                  <button type="button" onClick={() => setMode('links')} className="rounded-md px-2 py-1.5 font-semibold text-brand-deep hover:bg-brand/10">
                     🔗 링크 한꺼번에 입력 ({rows.filter((r) => r.link).length}/{rows.length})
                   </button>
                 )}
-                <button type="button" onClick={copyList} className="rounded-md px-1.5 py-0.5 font-semibold hover:bg-line-soft hover:text-ink">
+                <button type="button" onClick={copyList} className="rounded-md px-2 py-1.5 font-semibold hover:bg-line-soft hover:text-ink">
                   {copied ? '복사됨 ✓' : '남은 목록 복사'}
                 </button>
                 {checkedRows.length > 0 && (
-                  <button type="button" onClick={resetChecks} className="rounded-md px-1.5 py-0.5 font-semibold hover:bg-line-soft hover:text-ink">
+                  <button type="button" onClick={resetChecks} className="rounded-md px-2 py-1.5 font-semibold hover:bg-line-soft hover:text-ink">
                     체크 모두 지우기
                   </button>
                 )}
@@ -896,14 +896,14 @@ export function EquipOrders({
                           {[it.spec, it.brand, it.note].filter(Boolean).join(' · ')}
                         </div>
                       )}
-                      <div className="mt-0.5 flex items-center gap-1 text-[12.5px]">
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-1 text-[12.5px]">
                         <span className="text-ink-2 tabular-nums">
                           {qtyText(it.qty)}개 × {num(it.unit_price)}
                         </span>
                         {isOwner && (
                           <>
-                            <button type="button" onClick={() => setEditingItem(it.id)} className="rounded-md px-1.5 py-1 text-[11.5px] font-semibold text-muted">수정</button>
-                            <button type="button" onClick={() => removeItem(it.id)} className="-ml-1 rounded-md px-1.5 py-1 text-[11.5px] font-semibold text-muted">삭제</button>
+                            <button type="button" onClick={() => setEditingItem(it.id)} className="rounded-md px-2.5 py-2 text-[12px] font-semibold text-muted">수정</button>
+                            <button type="button" onClick={() => removeItem(it.id)} className="-ml-1 rounded-md px-2.5 py-2 text-[12px] font-semibold text-muted">삭제</button>
                           </>
                         )}
                         <b className="ml-auto tabular-nums">{num(lineAmount(it))}원</b>

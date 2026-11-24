@@ -169,7 +169,7 @@ export function ScheduleBoard({
         className={`grid gap-2 ${
           view === 'week'
             ? 'grid-cols-1 sm:grid-cols-2 shell:grid-cols-7'
-            : 'grid-cols-1 sm:grid-cols-2 shell:grid-cols-7'
+            : 'grid-cols-2 shell:grid-cols-7'
         }`}
       >
         {dates.map((d) => {
@@ -184,7 +184,11 @@ export function ScheduleBoard({
           return (
             <div
               key={d}
-              className={`flex min-h-[190px] flex-col rounded-[12px] border ${
+              className={`flex min-w-0 flex-col rounded-[12px] border ${
+                view === 'month'
+                  ? 'min-h-[150px] shell:min-h-[190px]'
+                  : 'min-h-[190px]'
+              } ${
                 red ? 'border-bad/30 bg-bad/[.04]' : 'border-line bg-[#fbfaf8]'
               }`}
             >
@@ -231,7 +235,7 @@ export function ScheduleBoard({
                       type="button"
                       onClick={() => assign(s.id, d, false)}
                       aria-label={`${s.name} 빼기`}
-                      className="shrink-0 px-0.5 opacity-50 transition hover:opacity-100"
+                      className="-my-1 grid h-7 w-7 shrink-0 place-items-center rounded-[6px] opacity-50 transition hover:opacity-100 shell:w-5"
                     >
                       ✕
                     </button>
@@ -259,7 +263,7 @@ export function ScheduleBoard({
                         <button
                           type="button"
                           onClick={() => addGroup(d, '직원')}
-                          className="flex-1 rounded-[7px] bg-s2/10 px-1 py-1 text-[11px] font-bold text-s2 transition hover:bg-s2/20"
+                          className="flex-1 rounded-[7px] bg-s2/10 px-1 py-2 text-[12.5px] font-bold shell:py-1 shell:text-[11px] text-s2 transition hover:bg-s2/20"
                         >
                           직원 +{staffLeft}
                         </button>
@@ -268,7 +272,7 @@ export function ScheduleBoard({
                         <button
                           type="button"
                           onClick={() => addGroup(d, '알바')}
-                          className="flex-1 rounded-[7px] bg-s3/15 px-1 py-1 text-[11px] font-bold text-[#8a5a00] transition hover:bg-s3/25"
+                          className="flex-1 rounded-[7px] bg-s3/15 px-1 py-2 text-[12.5px] font-bold shell:py-1 shell:text-[11px] text-[#8a5a00] transition hover:bg-s3/25"
                         >
                           알바 +{albaLeft}
                         </button>
@@ -286,7 +290,7 @@ export function ScheduleBoard({
                       if (e.target.value) assign(e.target.value, d, true)
                     }}
                     className="w-full rounded-[7px] border border-dashed border-line bg-transparent
-                               px-1.5 py-1 text-[11.5px] text-muted outline-none
+                               px-1.5 py-2 text-[12.5px] text-muted outline-none shell:py-1 shell:text-[11.5px]
                                transition hover:border-brand hover:text-brand-deep
                                focus:border-brand"
                   >

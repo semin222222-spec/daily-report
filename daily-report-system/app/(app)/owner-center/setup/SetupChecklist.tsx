@@ -279,7 +279,7 @@ export function SetupChecklist({
                   type="button"
                   onClick={() => remove(it)}
                   aria-label={`${it.title} 삭제`}
-                  className="shrink-0 rounded-md px-1.5 py-1 text-[13px] text-muted opacity-60 transition hover:bg-bad/10 hover:text-bad group-hover:opacity-100 print:hidden"
+                  className="-my-1 grid h-9 w-9 shrink-0 place-items-center rounded-md text-[13px] text-muted opacity-100 transition hover:bg-bad/10 hover:text-bad shell:opacity-60 shell:group-hover:opacity-100 print:hidden"
                 >
                   ✕
                 </button>
@@ -328,7 +328,7 @@ export function SetupChecklist({
               setSelected(l.id)
               setEditingItem(null)
             }}
-            className={`rounded-[10px] border px-3 py-1.5 text-[13px] font-bold transition ${
+            className={`max-w-full truncate rounded-[10px] border px-3 py-1.5 text-[13px] font-bold transition ${
               l.id === current.id
                 ? 'border-brand bg-brand text-white'
                 : 'border-line bg-white text-ink-2 hover:border-brand/50 hover:text-ink'
@@ -375,10 +375,10 @@ export function SetupChecklist({
           <div className="mt-2 flex flex-wrap items-center gap-1 text-[12px] text-muted print:hidden">
             {current.memo && <span className="mr-auto">📝 {current.memo}</span>}
             <span className={current.memo ? '' : 'mr-auto'}>항목을 누르면 수정, ✕ 로 삭제합니다.</span>
-            <button type="button" onClick={() => window.print()} className="rounded-md px-2 py-1 font-semibold hover:bg-line-soft hover:text-ink">
+            <button type="button" onClick={() => window.print()} className="rounded-md px-2 py-2 font-semibold hover:bg-line-soft hover:text-ink">
               인쇄 · PDF
             </button>
-            <button type="button" onClick={() => setMode('edit')} className="rounded-md px-2 py-1 font-semibold hover:bg-line-soft hover:text-ink">
+            <button type="button" onClick={() => setMode('edit')} className="rounded-md px-2 py-2 font-semibold hover:bg-line-soft hover:text-ink">
               매장 정보 수정
             </button>
             {isOwner && (
@@ -389,7 +389,7 @@ export function SetupChecklist({
                 }}
               >
                 <input type="hidden" name="id" value={current.id} />
-                <button type="submit" className="rounded-md px-2 py-1 font-semibold hover:bg-bad/10 hover:text-bad">
+                <button type="submit" className="rounded-md px-2 py-2 font-semibold hover:bg-bad/10 hover:text-bad">
                   삭제
                 </button>
               </form>

@@ -138,7 +138,7 @@ export function ReportForm({
         </div>
       )}
 
-      <div className="btn-row sticky bottom-4 z-10">
+      <div className="btn-row sticky bottom-[calc(var(--mnav)+12px)] z-10">
         <SubmitButton />
       </div>
     </form>

@@ -160,8 +160,8 @@ export function MeetingNotes({
         {notes.map((n) => (
           <div key={n.id} className="card">
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <h3 className="text-[15.5px] font-bold">{n.title}</h3>
+              <div className="min-w-0">
+                <h3 className="break-words text-[15.5px] font-bold">{n.title}</h3>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-muted">
                   {n.meeting_date && <span>📅 {n.meeting_date}</span>}
                   {n.attendees && <span>👥 {n.attendees}</span>}
@@ -172,7 +172,7 @@ export function MeetingNotes({
                   <button
                     type="button"
                     onClick={() => setEditing(n)}
-                    className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
+                    className="rounded-md px-3 py-2 text-[12.5px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
                   >
                     수정
                   </button>
@@ -180,7 +180,7 @@ export function MeetingNotes({
                     <input type="hidden" name="id" value={n.id} />
                     <button
                       type="submit"
-                      className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
+                      className="rounded-md px-3 py-2 text-[12.5px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
                     >
                       삭제
                     </button>

@@ -55,7 +55,7 @@ export function PermissionEditor({ account }: { account: Profile }) {
             key={l.value}
             type="button"
             onClick={() => setAll(l.value)}
-            className="btn-ghost !px-2.5 !py-1 !text-[11px]"
+            className="btn-ghost !px-2.5 !py-1 !text-xs shell:!text-[11px]"
           >
             전체 {l.label}
           </button>
@@ -73,7 +73,8 @@ export function PermissionEditor({ account }: { account: Profile }) {
               <div className="text-[11.5px] text-muted">{m.desc}</div>
             </div>
 
-            <div className="flex overflow-hidden rounded-[9px] border border-line">
+            {/* 휴대폰에선 메뉴 이름 아래 한 줄 전체 폭 */}
+            <div className="flex w-full overflow-hidden rounded-[9px] border border-line shell:w-auto">
               {PERM_LEVELS.map((l) => {
                 const active = levels[m.key] === l.value
                 const tone =
@@ -89,7 +90,7 @@ export function PermissionEditor({ account }: { account: Profile }) {
                     onClick={() =>
                       setLevels((v) => ({ ...v, [m.key]: l.value }))
                     }
-                    className={`px-3 py-1.5 text-[12px] font-bold transition ${
+                    className={`flex-1 whitespace-nowrap px-2 py-2 text-[12px] font-bold transition shell:flex-initial shell:whitespace-normal shell:px-3 shell:py-1.5 ${
                       active ? tone : 'bg-white text-ink-2 hover:bg-line-soft'
                     }`}
                   >

@@ -257,7 +257,54 @@ export function PurchaseSheet({
               </span>
             </div>
 
-            <div className="-mx-2 overflow-x-auto px-2">
+            {/* 폰: 주별로 쌓은 목록 (격자는 가로 스크롤이 너무 길다) */}
+            <div className="space-y-4 shell:hidden">
+              {weeks.map((w) => (
+                <div key={w.no}>
+                  <div className="mb-2 flex items-baseline justify-between gap-2 border-b border-line pb-1.5">
+                    <span className="text-[13px] font-extrabold">
+                      {w.label}
+                      <span className="ml-1 text-[11px] font-normal text-muted">
+                        {dayLabel(w.start)}~{dayLabel(w.end)}일
+                      </span>
+                    </span>
+                    <b className="text-[13px] tabular-nums">
+                      {sumWeek(nums, v.id, w).toLocaleString('ko-KR')}
+                    </b>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                    {WEEKDAY_KO.map((dow, row) => {
+                      const date = w.days[row]
+                      if (!date) return null
+                      const key = cellKey(v.id, date)
+                      return (
+                        <label key={dow} className="flex min-w-0 items-center gap-1.5">
+                          <span className="w-[42px] shrink-0 whitespace-nowrap text-[12px] text-ink-2">
+                            <span className="font-semibold text-muted">{dow}</span>{' '}
+                            {dayLabel(date)}일
+                          </span>
+                          <input
+                            value={comma(amounts[key] ?? '')}
+                            onChange={(e) => setCell(v.id, date, e.target.value)}
+                            disabled={readOnly}
+                            inputMode="numeric"
+                            placeholder="0"
+                            aria-label={`${v.name} ${date} 매입액`}
+                            className="w-full min-w-0 flex-1 rounded-[8px] border border-line bg-[#fbfaf8]
+                                       px-2 py-2 text-right text-[13px] tabular-nums outline-none
+                                       transition focus:border-brand focus:bg-white
+                                       focus:ring-[3px] focus:ring-brand/10
+                                       disabled:cursor-not-allowed disabled:opacity-60"
+                          />
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="-mx-2 hidden overflow-x-auto px-2 shell:block">
               <table className="w-full border-collapse text-[13px]">
                 <thead>
                   <tr>
@@ -349,13 +396,14 @@ export function PurchaseSheet({
           비율이 0%로 나옵니다.
         </p>
 
+        <div className="-mx-2 overflow-x-auto px-2">
         <table className="tbl">
           <thead>
             <tr>
-              <th>주</th>
-              <th>매출</th>
-              <th>매입</th>
-              <th>비율</th>
+              <th className="whitespace-nowrap">주</th>
+              <th className="whitespace-nowrap">매출</th>
+              <th className="whitespace-nowrap">매입</th>
+              <th className="whitespace-nowrap">비율</th>
             </tr>
           </thead>
           <tbody>
@@ -364,11 +412,11 @@ export function PurchaseSheet({
               const rate = purchaseRate(purchase, weekSales[i])
               return (
                 <tr key={w.no}>
-                  <td className="font-bold">{w.label}</td>
-                  <td className="tabular-nums">{won(weekSales[i])}</td>
-                  <td className="tabular-nums">{won(purchase)}</td>
+                  <td className="whitespace-nowrap font-bold">{w.label}</td>
+                  <td className="whitespace-nowrap tabular-nums">{won(weekSales[i])}</td>
+                  <td className="whitespace-nowrap tabular-nums">{won(purchase)}</td>
                   <td
-                    className={`tabular-nums font-bold ${
+                    className={`whitespace-nowrap tabular-nums font-bold ${
                       rate > 40 ? 'text-bad' : rate > 33 ? 'text-warn' : ''
                     }`}
                   >
@@ -378,20 +426,21 @@ export function PurchaseSheet({
               )
             })}
             <tr className="pl-total">
-              <td>{Number(ym.slice(5, 7))}월</td>
-              <td className="tabular-nums">{won(monthSales)}</td>
-              <td className="tabular-nums">{won(monthTotal)}</td>
-              <td className="tabular-nums">
+              <td className="whitespace-nowrap">{Number(ym.slice(5, 7))}월</td>
+              <td className="whitespace-nowrap tabular-nums">{won(monthSales)}</td>
+              <td className="whitespace-nowrap tabular-nums">{won(monthTotal)}</td>
+              <td className="whitespace-nowrap tabular-nums">
                 {pct(purchaseRate(monthTotal, monthSales))}
               </td>
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* ── 자동 저장 상태 ─────────────────────────── */}
       {!readOnly && (
-        <div className="sticky bottom-4 z-10 mt-4 flex items-center justify-end gap-3">
+        <div className="sticky bottom-[calc(var(--mnav)+12px)] z-10 mt-4 flex flex-wrap items-center justify-end gap-2 shell:gap-3">
           <span
             className={`rounded-[10px] bg-surface px-3 py-2 text-[13px] font-semibold shadow-card ${
               autoState === 'error' ? 'text-bad' : 'text-muted'

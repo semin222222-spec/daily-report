@@ -142,14 +142,14 @@ export function RecipeList({
           <button
             type="button"
             onClick={() => setSelected(new Set(filtered.map((r) => r.id)))}
-            className="text-[12.5px] font-semibold text-ink-2 hover:text-ink"
+            className="rounded-md px-2 py-2 text-[12.5px] font-semibold text-ink-2 hover:text-ink"
           >
             전체 선택
           </button>
           <button
             type="button"
             onClick={() => setSelected(new Set())}
-            className="text-[12.5px] font-semibold text-ink-2 hover:text-ink"
+            className="rounded-md px-2 py-2 text-[12.5px] font-semibold text-ink-2 hover:text-ink"
           >
             선택 해제
           </button>
@@ -157,7 +157,7 @@ export function RecipeList({
             type="button"
             onClick={printSelected}
             disabled={selected.size === 0}
-            className="btn !ml-auto !min-h-0 !px-3.5 !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn !ml-auto !min-h-[36px] shell:!min-h-0 !px-3.5 !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-50"
           >
             선택 항목 인쇄 ({selected.size})
           </button>
@@ -202,7 +202,7 @@ export function RecipeList({
                           <span className="text-[16px]">🍽️</span>
                         )}
                       </div>
-                      <span className="min-w-0 truncate">{r.name}</span>
+                      <span className="line-clamp-2 min-w-0 break-words leading-snug">{r.name}</span>
                     </>
                   )
                   if (selectMode) {

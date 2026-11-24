@@ -100,7 +100,7 @@ export function LinkEditor({
                     target="_blank"
                     rel="noopener noreferrer"
                     title="쿠팡에서 검색"
-                    className="rounded-md px-1.5 py-1 text-[14px] no-underline hover:bg-line-soft"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-[14px] no-underline hover:bg-line-soft"
                   >
                     🔍
                   </a>

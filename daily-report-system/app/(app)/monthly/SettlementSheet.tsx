@@ -298,14 +298,19 @@ export function SettlementSheet({
                       def.category === 'labor_part' ? (
                         // 알바: 이름 + 시급 × 시간 = 금액.
                         // 시급·시간을 넣으면 금액이 자동 계산되고, 금액만 직접 입력해도 된다.
-                        <div key={r.key} className="flex flex-wrap items-center gap-2">
+                        // 폰: 1줄 이름+✕, 2줄 시급×시간=금액 (격자). sm 이상은 한 줄.
+                        <div
+                          key={r.key}
+                          className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,0.75fr)_auto_minmax(0,1.4fr)_2.75rem]
+                                     items-center gap-2 sm:flex sm:flex-wrap"
+                        >
                           <input
                             value={r.name}
                             onChange={(e) =>
                               patchRow(r.key, { name: e.target.value })
                             }
                             placeholder="알바 이름"
-                            className="fld-input min-w-0 flex-1 basis-full sm:basis-0"
+                            className="fld-input col-span-5 min-w-0 flex-1 sm:basis-0"
                           />
                           <input
                             value={comma(r.rate)}
@@ -314,7 +319,7 @@ export function SettlementSheet({
                             }
                             inputMode="numeric"
                             placeholder="시급"
-                            className="fld-input w-[80px] shrink-0 text-right tabular-nums sm:w-[104px]"
+                            className="fld-input w-full min-w-0 shrink-0 text-right tabular-nums sm:w-[104px]"
                           />
                           <span className="shrink-0 text-[13px] text-muted">×</span>
                           <input
@@ -324,7 +329,7 @@ export function SettlementSheet({
                             }
                             inputMode="decimal"
                             placeholder="시간"
-                            className="fld-input w-[64px] shrink-0 text-right tabular-nums sm:w-[80px]"
+                            className="fld-input w-full min-w-0 shrink-0 text-right tabular-nums sm:w-[80px]"
                           />
                           <span className="shrink-0 text-[13px] text-muted">=</span>
                           <input
@@ -335,13 +340,13 @@ export function SettlementSheet({
                             inputMode="numeric"
                             placeholder="금액"
                             aria-label="알바 금액"
-                            className="fld-input w-[100px] shrink-0 text-right font-bold tabular-nums sm:w-[124px]"
+                            className="fld-input col-span-2 w-full min-w-0 shrink-0 text-right font-bold tabular-nums sm:w-[124px]"
                           />
                           <button
                             type="button"
                             onClick={() => removeRow(r.key)}
                             aria-label="삭제"
-                            className="grid w-11 shrink-0 place-items-center rounded-[10px]
+                            className="col-start-6 row-start-1 grid w-11 shrink-0 place-items-center self-stretch rounded-[10px] sm:self-auto
                                        border border-line text-muted transition
                                        hover:border-bad hover:text-bad"
                           >
@@ -366,7 +371,7 @@ export function SettlementSheet({
                             }
                             inputMode="numeric"
                             placeholder="금액"
-                            className="fld-input w-[104px] shrink-0 text-right tabular-nums
+                            className="fld-input w-[120px] shrink-0 text-right tabular-nums
                                        sm:w-[140px] shell:w-[170px]"
                           />
                           <button
@@ -391,7 +396,7 @@ export function SettlementSheet({
                   </div>
 
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => addRow(def.category)}
@@ -425,7 +430,7 @@ export function SettlementSheet({
             })}
 
             {group.defs.length > 1 && (
-              <div className="mt-3 flex justify-between border-t-2 border-line pt-3 text-[14px] font-extrabold">
+              <div className="mt-3 flex flex-wrap justify-between gap-x-2 border-t-2 border-line pt-3 text-[14px] font-extrabold">
                 <span>{group.title} 총 합산금액</span>
                 <span className="tabular-nums">
                   {won(groupTotal)}
@@ -487,7 +492,7 @@ export function SettlementSheet({
       )}
 
       {/* ── 저장 ──────────────────────────────────── */}
-      <div className="sticky bottom-4 z-10 mt-4 flex items-center justify-end gap-3">
+      <div className="sticky bottom-[calc(var(--mnav)+12px)] z-10 mt-4 flex flex-wrap items-center justify-end gap-2 shell:gap-3">
         {/* 자동 저장 상태 — 저장 버튼을 안 눌러도 입력이 멈추면 저장된다 */}
         <span
           className={`rounded-[10px] bg-surface px-3 py-2 text-[13px] font-semibold shadow-card ${

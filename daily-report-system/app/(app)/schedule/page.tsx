@@ -103,11 +103,11 @@ export default async function SchedulePage({
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
           <Link href={link(view, step(-1))} className="btn-ghost !py-2 !text-[13px]">
             ←
           </Link>
-          <span className="min-w-[150px] text-center text-[13px] font-semibold text-ink-2">
+          <span className="min-w-0 flex-1 text-center text-[13px] font-semibold text-ink-2 sm:min-w-[150px] sm:flex-none">
             {formatDateShort(span.start)} ~ {formatDateShort(span.end)}
           </span>
           <Link href={link(view, step(1))} className="btn-ghost !py-2 !text-[13px]">
@@ -176,7 +176,7 @@ export default async function SchedulePage({
             name="name"
             required
             placeholder="이름"
-            className="fld-input min-w-0 flex-1"
+            className="fld-input w-full min-w-0 shell:w-auto shell:flex-1"
           />
           <select
             name="emp_type"
@@ -192,7 +192,7 @@ export default async function SchedulePage({
             placeholder="홀 / 주방"
             className="fld-input w-full shell:w-[140px]"
           />
-          <button type="submit" className="btn">
+          <button type="submit" className="btn w-full shell:w-auto">
             추가
           </button>
         </form>

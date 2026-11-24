@@ -68,7 +68,8 @@ export default async function ReservationsPage({
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="text-[15px] font-extrabold">{formatDateKo(date)}</div>
 
-        <div className="ml-auto flex items-center gap-2">
+        {/* 모바일은 한 줄 전체를 쓰고 날짜칸이 남는 폭을 채운다 */}
+        <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
           <Link href={link(step(-1))} className="btn-ghost !py-2 !text-[13px]">
             ←
           </Link>
@@ -79,13 +80,16 @@ export default async function ReservationsPage({
             오늘
           </Link>
           {/* 먼 날짜로 한 번에 — 자바스크립트 없이 GET 폼으로 이동한다 */}
-          <form method="get" className="flex items-center gap-1.5">
+          <form
+            method="get"
+            className="flex min-w-[200px] flex-1 items-center gap-1.5 sm:flex-none"
+          >
             <input
               type="date"
               name="date"
               defaultValue={date}
               aria-label="날짜 선택"
-              className="fld-input !w-[150px] !py-2 !text-[13px]"
+              className="fld-input min-w-0 flex-1 !py-2 !text-[13px] sm:!w-[150px] sm:flex-none"
             />
             <button type="submit" className="btn-ghost !px-3 !py-2 !text-[13px]">
               이동

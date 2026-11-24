@@ -144,7 +144,7 @@ export function VendorManager({
                 ) : (
                   <>
                     <span
-                      className={`min-w-0 flex-1 truncate text-[14px] font-bold ${
+                      className={`min-w-0 flex-1 basis-full truncate text-[14px] sm:basis-0 font-bold ${
                         v.is_active ? 'text-ink' : 'text-muted line-through'
                       }`}
                     >
@@ -159,7 +159,7 @@ export function VendorManager({
                       disabled={pending || i === 0}
                       onClick={() => simple(moveVendor, { id: v.id, dir: 'up' })}
                       aria-label="위로"
-                      className="btn-ghost !min-h-0 !px-2.5 !py-1.5 !text-xs disabled:opacity-30"
+                      className="btn-ghost !min-h-[36px] shell:!min-h-0 !px-2.5 !py-1.5 !text-xs disabled:opacity-30"
                     >
                       ↑
                     </button>
@@ -168,7 +168,7 @@ export function VendorManager({
                       disabled={pending || i === vendors.length - 1}
                       onClick={() => simple(moveVendor, { id: v.id, dir: 'down' })}
                       aria-label="아래로"
-                      className="btn-ghost !min-h-0 !px-2.5 !py-1.5 !text-xs disabled:opacity-30"
+                      className="btn-ghost !min-h-[36px] shell:!min-h-0 !px-2.5 !py-1.5 !text-xs disabled:opacity-30"
                     >
                       ↓
                     </button>
@@ -179,7 +179,7 @@ export function VendorManager({
                         setEditing(v.id)
                         setEditName(v.name)
                       }}
-                      className="btn-ghost !min-h-0 !px-3 !py-1.5 !text-xs"
+                      className="btn-ghost !min-h-[36px] shell:!min-h-0 !px-3 !py-1.5 !text-xs"
                     >
                       이름
                     </button>
@@ -197,7 +197,7 @@ export function VendorManager({
                           ? '매입표에서 숨깁니다. 지난 기록은 그대로 남습니다.'
                           : '매입표에 다시 표시합니다.'
                       }
-                      className="btn-ghost !min-h-0 !px-3 !py-1.5 !text-xs"
+                      className="btn-ghost !min-h-[36px] shell:!min-h-0 !px-3 !py-1.5 !text-xs"
                     >
                       {v.is_active ? '끄기' : '켜기'}
                     </button>
@@ -215,8 +215,8 @@ export function VendorManager({
                         simple(deleteVendor, { id: v.id })
                       }}
                       aria-label="삭제"
-                      className="grid !min-h-0 w-9 place-items-center rounded-[10px] border
-                                 border-line py-1.5 text-xs text-muted transition
+                      className="grid h-9 w-9 place-items-center rounded-[10px] border
+                                 border-line text-xs shell:h-auto shell:py-1.5 text-muted transition
                                  hover:border-bad hover:text-bad"
                     >
                       ✕

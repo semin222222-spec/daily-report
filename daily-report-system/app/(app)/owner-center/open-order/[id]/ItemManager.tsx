@@ -13,7 +13,7 @@ import { addItem, deleteItem, setItemStatus, updateItem } from '../actions'
 
 /**
  * 품목 표 + 추가·수정·삭제 + 입고 체크 + 발주 관리 항목.
- * 컬럼이 많아 가로 스크롤된다. 구매상태는 표에서 바로 바꿀 수 있고,
+ * 컬럼이 많아 가로 스크롤된다(휴대폰에선 카드 목록). 구매상태는 표에서 바로 바꿀 수 있고,
  * 나머지 항목은 [수정]에서 한 번에 편집한다.
  * 입고 체크는 아직 브라우저(localStorage)에 저장한다(품목 id 기준).
  */
@@ -76,7 +76,109 @@ export function ItemManager({
         />
       </div>
 
-      <div className="overflow-x-auto">
+      {/* 휴대폰: 표 대신 카드 목록 */}
+      <div className="divide-y divide-line-soft shell:hidden">
+        {items.length === 0 && (
+          <p className="py-6 text-center text-[13px] text-muted">
+            품목이 없습니다. 아래에서 추가하세요.
+          </p>
+        )}
+
+        {items.map((it) => {
+          if (editing === it.id) {
+            return (
+              <div key={it.id} className="py-2.5">
+                <ItemForm
+                  action={updateItem}
+                  hidden={{ id: it.id }}
+                  initial={it}
+                  submitLabel="저장"
+                  onDone={() => setEditing(null)}
+                />
+              </div>
+            )
+          }
+
+          const on = loaded && checked[it.id]
+          const details = [
+            it.manager && `담당 ${it.manager}`,
+            it.vendor && `구매처 ${it.vendor}`,
+            it.due_date && `입고예정 ${it.due_date}`,
+            it.location && `설치/보관 ${it.location}`,
+            it.note,
+          ].filter(Boolean)
+          return (
+            <div
+              key={it.id}
+              className={`flex items-start gap-2.5 py-3 ${on ? 'opacity-55' : ''}`}
+            >
+              <div className="shrink-0 pl-2 pt-1">
+                <CheckToggle on={!!on} onToggle={() => toggle(it.id)} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className={`pill ${PRIORITY_STYLE[it.priority]}`}>
+                    {it.priority}
+                  </span>
+                  <span
+                    className={`text-[14px] font-semibold leading-snug ${on ? 'line-through' : ''}`}
+                  >
+                    {it.name}
+                  </span>
+                </div>
+                <div className="mt-0.5 text-[12.5px] text-ink-2">
+                  {it.spec || '—'} ·{' '}
+                  <span className="tabular-nums">
+                    {it.qty || '—'} <span className="text-muted">{it.unit}</span>
+                  </span>
+                </div>
+                <div className="mt-0.5 text-[12.5px] tabular-nums text-ink-2">
+                  예상 {won(it.est_price)} · 실구매 <b>{won(it.buy_price)}</b>
+                </div>
+                {details.length > 0 && (
+                  <div className="mt-0.5 text-[12px] text-muted">
+                    {details.join(' · ')}
+                  </div>
+                )}
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <StatusControl
+                    item={it}
+                    isOwner={isOwner}
+                    selectClass="py-2 text-[13px]"
+                  />
+                  {it.link && <ItemLink href={it.link} />}
+                  <span className="ml-auto text-[11.5px] tabular-nums text-muted">
+                    {it.updated_at?.slice(0, 10) ?? '—'}
+                  </span>
+                </div>
+
+                {isOwner && (
+                  <div className="mt-1.5 -ml-3">
+                    <RowActions
+                      id={it.id}
+                      onEdit={() => setEditing(it.id)}
+                      btnClass="px-3 py-2 text-[13px]"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+
+        {items.length > 0 && (
+          <div className="flex items-center justify-between gap-2 py-3 text-[13px] font-bold tabular-nums">
+            <span>합계</span>
+            <span>
+              예상 {won(estTotal)} · 실구매 {won(buyTotal)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto shell:block">
         <table className="tbl min-w-[1100px]">
           <thead>
             <tr>
@@ -128,20 +230,7 @@ export function ItemManager({
               return (
                 <tr key={it.id} className={on ? 'opacity-55' : ''}>
                   <td className="!text-center">
-                    <button
-                      type="button"
-                      onClick={() => toggle(it.id)}
-                      aria-label={on ? '입고 취소' : '입고 완료'}
-                      className="-m-2 grid h-10 w-10 place-items-center p-2"
-                    >
-                      <span
-                        className={`grid h-[22px] w-[22px] place-items-center rounded border-2 text-[12px] font-bold transition ${
-                          on ? 'border-brand bg-brand text-white' : 'border-line'
-                        }`}
-                      >
-                        {on ? '✓' : ''}
-                      </span>
-                    </button>
+                    <CheckToggle on={!!on} onToggle={() => toggle(it.id)} />
                   </td>
                   <td>
                     <span className={`pill ${PRIORITY_STYLE[it.priority]}`}>
@@ -160,44 +249,16 @@ export function ItemManager({
                   <td className="tabular-nums">{won(it.est_price)}</td>
                   <td className="tabular-nums">{won(it.buy_price)}</td>
                   <td>
-                    {isOwner ? (
-                      // 관리자는 표에서 구매상태를 바로 변경
-                      <form action={setItemStatus} className="inline">
-                        <input type="hidden" name="id" value={it.id} />
-                        <select
-                          name="status"
-                          defaultValue={it.status}
-                          onChange={(e) => e.currentTarget.form?.requestSubmit()}
-                          className={`rounded-md border-0 px-2 py-1 text-[12px] font-bold outline-none ${STATUS_STYLE[it.status]}`}
-                        >
-                          {OC_STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      </form>
-                    ) : (
-                      <span className={`pill ${STATUS_STYLE[it.status]}`}>
-                        {it.status}
-                      </span>
-                    )}
+                    <StatusControl
+                      item={it}
+                      isOwner={isOwner}
+                      selectClass="py-1 text-[12px]"
+                    />
                   </td>
                   <td className="!text-left">{it.manager || '—'}</td>
                   <td className="!text-left">{it.vendor || '—'}</td>
                   <td className="!text-center">
-                    {it.link ? (
-                      <a
-                        href={it.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-semibold text-brand-deep hover:underline"
-                      >
-                        🔗 링크
-                      </a>
-                    ) : (
-                      '—'
-                    )}
+                    {it.link ? <ItemLink href={it.link} /> : '—'}
                   </td>
                   <td className="!text-left tabular-nums">{it.due_date || '—'}</td>
                   <td className="!text-left">{it.location || '—'}</td>
@@ -207,24 +268,12 @@ export function ItemManager({
                   </td>
                   <td className="text-right">
                     {isOwner && (
-                      <div className="flex justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setEditing(it.id)}
-                          className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-line-soft hover:text-ink"
-                        >
-                          수정
-                        </button>
-                        <form action={deleteItem}>
-                          <input type="hidden" name="id" value={it.id} />
-                          <button
-                            type="submit"
-                            className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted transition hover:bg-bad/10 hover:text-bad"
-                          >
-                            삭제
-                          </button>
-                        </form>
-                      </div>
+                      <RowActions
+                        id={it.id}
+                        onEdit={() => setEditing(it.id)}
+                        btnClass="px-2 py-1 text-[11px]"
+                        className="justify-end"
+                      />
                     )}
                   </td>
                 </tr>
@@ -280,6 +329,109 @@ export function ItemManager({
         )}
         입고 체크는 아직 이 브라우저에만 저장됩니다.
       </p>
+    </div>
+  )
+}
+
+/** 입고 체크 버튼 (표·카드 공용) */
+function CheckToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={on ? '입고 취소' : '입고 완료'}
+      className="-m-2 grid h-10 w-10 place-items-center p-2"
+    >
+      <span
+        className={`grid h-[22px] w-[22px] place-items-center rounded border-2 text-[12px] font-bold transition ${
+          on ? 'border-brand bg-brand text-white' : 'border-line'
+        }`}
+      >
+        {on ? '✓' : ''}
+      </span>
+    </button>
+  )
+}
+
+/** 구매상태 — 관리자는 바로 변경, 그 외엔 표시만 */
+function StatusControl({
+  item,
+  isOwner,
+  selectClass,
+}: {
+  item: OcItem
+  isOwner: boolean
+  /** 세로 여백·글자 크기 (표/카드가 다름) */
+  selectClass: string
+}) {
+  if (!isOwner) {
+    return (
+      <span className={`pill ${STATUS_STYLE[item.status]}`}>{item.status}</span>
+    )
+  }
+  return (
+    <form action={setItemStatus} className="inline">
+      <input type="hidden" name="id" value={item.id} />
+      <select
+        name="status"
+        defaultValue={item.status}
+        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        className={`rounded-md border-0 px-2 ${selectClass} font-bold outline-none ${STATUS_STYLE[item.status]}`}
+      >
+        {OC_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+    </form>
+  )
+}
+
+function ItemLink({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-semibold text-brand-deep hover:underline"
+    >
+      🔗 링크
+    </a>
+  )
+}
+
+/** 수정·삭제 버튼 (표·카드 공용) */
+function RowActions({
+  id,
+  onEdit,
+  btnClass,
+  className = '',
+}: {
+  id: string
+  onEdit: () => void
+  /** 여백·글자 크기 (표/카드가 다름) */
+  btnClass: string
+  className?: string
+}) {
+  return (
+    <div className={`flex gap-1 ${className}`}>
+      <button
+        type="button"
+        onClick={onEdit}
+        className={`rounded-md ${btnClass} font-semibold text-muted transition hover:bg-line-soft hover:text-ink`}
+      >
+        수정
+      </button>
+      <form action={deleteItem}>
+        <input type="hidden" name="id" value={id} />
+        <button
+          type="submit"
+          className={`rounded-md ${btnClass} font-semibold text-muted transition hover:bg-bad/10 hover:text-bad`}
+        >
+          삭제
+        </button>
+      </form>
     </div>
   )
 }

@@ -148,7 +148,7 @@ export function ClosingLogForm({
   const secHint = 'text-[12.5px] text-muted'
 
   return (
-    <div className="grid items-start gap-5 shell:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
       <form onSubmit={submit} className="grid min-w-0 gap-3.5" autoComplete="off">
         <fieldset disabled={readOnly || pending} className="contents">
           {/* 기본 정보 */}
@@ -198,8 +198,9 @@ export function ClosingLogForm({
               <h3 className={secTitle}>영업 현황</h3>
               <span className={secHint}>버튼으로 숫자만 올리면 됩니다</span>
             </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              <div className="grid gap-1.5 rounded-xl border border-line-soft bg-page px-3 py-2.5">
+            {/* 좁은 폰은 한 줄에 하나씩(이름 왼쪽·버튼 오른쪽) — 2칸이면 스테퍼가 넘친다 */}
+            <div className="grid grid-cols-1 gap-2.5 min-[440px]:grid-cols-2 sm:grid-cols-3">
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-line-soft bg-page px-3 py-2.5 min-[440px]:grid min-[440px]:justify-normal min-[440px]:gap-1.5">
                 <span className="text-[12.5px] font-semibold text-ink-2">오픈런</span>
                 <Stepper
                   label="오픈런"
@@ -209,7 +210,7 @@ export function ClosingLogForm({
                   disabled={readOnly}
                 />
               </div>
-              <div className="grid gap-1.5 rounded-xl border border-line-soft bg-page px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-line-soft bg-page px-3 py-2.5 min-[440px]:grid min-[440px]:justify-normal min-[440px]:gap-1.5">
                 <span className="text-[12.5px] font-semibold text-ink-2">네이버 예약</span>
                 <Stepper
                   label="네이버 예약"
@@ -219,7 +220,7 @@ export function ClosingLogForm({
                   disabled={readOnly}
                 />
               </div>
-              <div className="col-span-2 grid gap-1.5 rounded-xl border border-line-soft bg-page px-3 py-2.5 sm:col-span-1">
+              <div className="grid gap-1.5 rounded-xl border border-line-soft bg-page px-3 py-2.5 min-[440px]:col-span-2 sm:col-span-1">
                 <label htmlFor="cl-full" className="text-[12.5px] font-semibold text-ink-2">
                   만석 시각 <span className="font-normal text-muted">(없으면 비움)</span>
                 </label>
@@ -240,7 +241,7 @@ export function ClosingLogForm({
               <h3 className={secTitle}>매장 컨디션</h3>
               <span className={secHint}>오늘 하루 점수</span>
             </div>
-            <div className="grid grid-cols-10 gap-1" role="group" aria-label="매장 컨디션 점수">
+            <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10 sm:gap-1" role="group" aria-label="매장 컨디션 점수">
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
                 <button
                   key={n}
@@ -279,7 +280,7 @@ export function ClosingLogForm({
                       type="button"
                       aria-pressed={!f[c.key]}
                       onClick={() => set(c.key, false)}
-                      className={`px-4 py-1.5 text-[13.5px] ${
+                      className={`px-4 py-2 text-[13.5px] ${
                         !f[c.key] ? 'bg-good/10 font-bold text-[#0a7d0a]' : 'bg-surface text-ink-2'
                       }`}
                     >
@@ -289,7 +290,7 @@ export function ClosingLogForm({
                       type="button"
                       aria-pressed={f[c.key]}
                       onClick={() => set(c.key, true)}
-                      className={`border-l border-line px-4 py-1.5 text-[13.5px] ${
+                      className={`border-l border-line px-4 py-2 text-[13.5px] ${
                         f[c.key] ? 'bg-bad/10 font-bold text-bad' : 'bg-surface text-ink-2'
                       }`}
                     >
@@ -335,7 +336,7 @@ export function ClosingLogForm({
                       type="button"
                       aria-label={`${m.name} 메뉴 빼기`}
                       onClick={() => set('menu_sales', f.menu_sales.filter((_, j) => j !== i))}
-                      className="px-1 text-xl leading-none text-muted hover:text-bad"
+                      className="grid h-9 w-9 place-items-center rounded-[10px] text-xl leading-none text-muted hover:text-bad"
                     >
                       ×
                     </button>
@@ -357,9 +358,9 @@ export function ClosingLogForm({
                   }}
                   placeholder="메뉴 추가 (예: 김치찜세트)"
                   aria-label="추가할 메뉴 이름"
-                  className="fld-input"
+                  className="fld-input min-w-0 flex-1"
                 />
-                <button type="button" className="btn-ghost" onClick={addMenu}>
+                <button type="button" className="btn-ghost shrink-0" onClick={addMenu}>
                   추가
                 </button>
               </div>
@@ -394,7 +395,7 @@ export function ClosingLogForm({
                         type="button"
                         aria-label="특이사항 삭제"
                         onClick={() => set('issues', f.issues.filter((_, j) => j !== i))}
-                        className="px-1 text-xl leading-none text-muted hover:text-bad"
+                        className="grid h-9 w-9 flex-none place-items-center rounded-[10px] text-xl leading-none text-muted hover:text-bad"
                       >
                         ×
                       </button>
@@ -408,7 +409,7 @@ export function ClosingLogForm({
                     placeholder="무슨 일이 있었는지 적어주세요"
                     className="fld-input"
                   />
-                  <label className="flex items-center gap-2 text-[13px] text-ink-2">
+                  <label className="flex flex-wrap items-center gap-2 text-[13px] text-ink-2">
                     금액(선택)
                     <input
                       type="number"
@@ -451,16 +452,17 @@ export function ClosingLogForm({
           </section>
 
           {!readOnly && (
-            <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3 shadow-card">
+            // 폰에서는 화면을 덜 가리도록 버튼만 한 줄로 (저장 결과 문구는 그때만 표시)
+            <div className="sticky bottom-[calc(var(--mnav)+8px)] z-10 -mx-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-card border border-line bg-surface px-3 py-2.5 shadow-card sm:px-4 sm:py-3">
               <span
                 role="status"
                 className={`text-[13px] font-semibold ${
-                  result ? (result.ok ? 'text-good' : 'text-bad') : 'text-ink-2'
+                  result ? (result.ok ? 'text-good' : 'text-bad') : 'hidden text-ink-2 sm:inline'
                 }`}
               >
                 {result?.message ?? '저장하면 점주가 바로 볼 수 있고 기록으로 남습니다'}
               </span>
-              <button type="submit" className="btn" disabled={pending}>
+              <button type="submit" className="btn max-sm:flex-1" disabled={pending}>
                 {pending ? '저장 중…' : existing ? '마감일지 수정' : '마감일지 저장'}
               </button>
             </div>
@@ -468,7 +470,7 @@ export function ClosingLogForm({
         </fieldset>
       </form>
 
-      <aside className="grid min-w-0 gap-2 shell:sticky shell:top-4">
+      <aside className="grid min-w-0 gap-2 xl:sticky xl:top-[84px]">
         <div className="text-xs font-bold tracking-wide text-muted">
           점주가 보는 화면 {existing ? '' : '(미리보기)'}
         </div>

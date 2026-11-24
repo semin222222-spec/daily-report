@@ -237,7 +237,7 @@ export function EquipImport({
               <button
                 type="button"
                 onClick={() => setFilter('changed')}
-                className={`pill ${filter === 'changed' ? '!bg-ink !text-white' : 'bg-line-soft text-ink-2'}`}
+                className={`pill !px-3 !py-1.5 ${filter === 'changed' ? '!bg-ink !text-white' : 'bg-line-soft text-ink-2'}`}
               >
                 변경 전체 {diff.rows.length - diff.counts.same}
               </button>
@@ -247,7 +247,7 @@ export function EquipImport({
                   type="button"
                   onClick={() => setFilter(k)}
                   disabled={diff.counts[k] === 0}
-                  className={`pill ${filter === k ? '!bg-ink !text-white' : KIND_META[k].pill} disabled:opacity-40`}
+                  className={`pill !px-3 !py-1.5 ${filter === k ? '!bg-ink !text-white' : KIND_META[k].pill} disabled:opacity-40`}
                 >
                   {KIND_META[k].label} {diff.counts[k]}
                 </button>
@@ -255,7 +255,7 @@ export function EquipImport({
               <button
                 type="button"
                 onClick={() => setFilter('all')}
-                className={`pill ${filter === 'all' ? '!bg-ink !text-white' : 'bg-line-soft text-muted'}`}
+                className={`pill !px-3 !py-1.5 ${filter === 'all' ? '!bg-ink !text-white' : 'bg-line-soft text-muted'}`}
               >
                 모두 보기
               </button>

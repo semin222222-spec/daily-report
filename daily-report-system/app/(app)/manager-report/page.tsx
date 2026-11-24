@@ -123,11 +123,11 @@ export default async function ManagerReportPage({
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
           <Link href={link(periodType, step(-1))} className="btn-ghost !py-2 !text-[13px]">
             ←
           </Link>
-          <span className="min-w-[150px] text-center text-[13px] font-semibold text-ink-2">
+          <span className="min-w-0 flex-1 text-center sm:min-w-[150px] sm:flex-none text-[13px] font-semibold text-ink-2">
             {formatDateShort(span.start)} ~ {formatDateShort(span.end)}
           </span>
           <Link href={link(periodType, step(1))} className="btn-ghost !py-2 !text-[13px]">
@@ -152,22 +152,27 @@ export default async function ManagerReportPage({
             { label: '총 객수', value: `${num(p.guests)}명` },
             { label: '객단가', value: won(p.guests ? p.sales / p.guests : 0) },
             { label: '마감 일수', value: `${p.days}일` },
-            { label: '식자재 원가', value: `${won(p.cost)} (${pct(costRate)})` },
+            { label: '식자재 원가', value: won(p.cost), sub: `(${pct(costRate)})` },
             { label: '인건비', value: won(laborForPeriod) },
             { label: '고정비', value: won(fixedForPeriod) },
             {
               label: '영업이익',
-              value: `${won(p.profit)} (${pct(profitRate)})`,
+              value: won(p.profit),
+              sub: `(${pct(profitRate)})`,
             },
-          ].map((s) => (
+          ].map((s: { label: string; value: string; sub?: string }) => (
             <div
               key={s.label}
-              className="rounded-[10px] border border-line-soft bg-[#fbfaf8] px-3 py-2.5"
+              className="min-w-0 rounded-[10px] border border-line-soft bg-[#fbfaf8] px-3 py-2.5"
             >
               <div className="text-[11.5px] text-muted">{s.label}</div>
               <div className="mt-0.5 text-[14px] font-extrabold tabular-nums">
                 {s.value}
               </div>
+              {/* 비율은 따로 한 줄 — 좁은 칸에서 금액이 어색하게 끊기지 않게 */}
+              {s.sub && (
+                <div className="text-[12px] text-muted tabular-nums">{s.sub}</div>
+              )}
             </div>
           ))}
         </div>

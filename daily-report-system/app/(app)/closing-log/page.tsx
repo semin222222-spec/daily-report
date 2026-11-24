@@ -71,7 +71,8 @@ export default async function ClosingLogPage({
           고칠 수 있습니다.
         </p>
         <div className="overflow-x-auto">
-          <table className="tbl">
+          {/* 폰에서는 줄바꿈 대신 가로로 밀어 본다 */}
+          <table className="tbl min-w-[480px] whitespace-nowrap">
             <thead>
               <tr>
                 <th>날짜</th>

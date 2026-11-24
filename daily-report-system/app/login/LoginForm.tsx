@@ -94,7 +94,7 @@ export function LoginForm({
   // 아이디 힌트 — 클릭하면 아이디 칸만 채운다(비밀번호는 채우지 않는다)
 
   return (
-    <div className="flex flex-col justify-center bg-white px-[38px] py-[42px]">
+    <div className="flex flex-col justify-center bg-white px-6 py-7 shell:px-[38px] shell:py-[42px]">
       <h2 className="m-0 mb-1 text-xl font-bold">로그인</h2>
       <p className="m-0 mb-6 text-[13px] text-muted">
         매장 계정으로 로그인하면 해당 매장으로 들어갑니다.
@@ -145,8 +145,8 @@ export function LoginForm({
         <button
           type="submit"
           disabled={busy}
-          className="mt-2 w-full rounded-[11px] border-0 bg-brand py-[13px] text-[15px] font-extrabold
-                     tracking-[.01em] text-white transition hover:bg-brand-deep
+          className="mt-2 w-full rounded-[11px] border-0 bg-brand py-[14px] text-[15px] font-extrabold
+                     tracking-[.01em] text-white transition hover:bg-brand-deep active:scale-[.98]
                      disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy ? '확인 중…' : '로그인'}
