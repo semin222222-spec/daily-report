@@ -12,7 +12,10 @@ export function RecipeList({
   thumbs,
   photos,
   isOwner,
+  basePath = '/owner-center/recipe',
 }: {
+  /** 상세 화면 주소의 앞부분 (매장 전용 레시피 메뉴는 /recipes) */
+  basePath?: string
   categories: RecipeCategory[]
   recipes: Recipe[]
   /** 레시피 id → 목록용 작은 사진 주소 */
@@ -237,7 +240,7 @@ export function RecipeList({
                   return (
                     <Link
                       key={r.id}
-                      href={`/owner-center/recipe/${r.id}`}
+                      href={`${basePath}/${r.id}`}
                       className="flex items-center gap-2.5 rounded-[12px] border border-line bg-surface p-2 text-[13.5px] font-semibold transition hover:border-brand hover:text-brand-deep hover:shadow-[0_8px_24px_rgba(240,84,45,.12)]"
                     >
                       {cardInner}

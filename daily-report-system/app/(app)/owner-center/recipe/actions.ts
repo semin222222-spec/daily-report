@@ -121,3 +121,32 @@ export async function deleteRecipe(formData: FormData): Promise<void> {
   if (row?.video_path) await supabase.storage.from('owner-center').remove([row.video_path])
   revalidatePath('/owner-center/recipe')
 }
+
+// ── 매장별 공개 범위 (오너 전용) ─────────────────────────────
+/**
+ * 이 매장 점장에게 보일 레시피를 정한다.
+ * ids가 null이면 제한 없음, 배열이면 그 레시피만 (사이드바에 "레시피" 메뉴가 생긴다).
+ * stores 쓰기는 RLS(is_owner)로도 오너만 가능하다.
+ */
+export async function setStoreRecipes(
+  storeId: string,
+  ids: string[] | null
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await assertOwner()
+  const { data: auth } = await supabase.auth.getSession()
+  const { data: me } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', auth.session?.user.id ?? '')
+    .maybeSingle()
+  if (me?.role !== 'owner') return { ok: false, error: '오너만 바꿀 수 있습니다.' }
+
+  const { error } = await supabase
+    .from('stores')
+    .update({ recipe_ids: ids == null ? null : Array.from(new Set(ids)) })
+    .eq('id', storeId)
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/owner-center/recipe')
+  revalidatePath('/recipes')
+  return { ok: true }
+}

@@ -15,7 +15,9 @@ export function RecipeDetail({
   photoUrl,
   videoUrl,
   isOwner,
+  backHref = '/owner-center/recipe',
 }: {
+  backHref?: string
   recipe: Recipe
   categoryName: string
   categories: RecipeCategory[]
@@ -77,7 +79,7 @@ export function RecipeDetail({
       <div className="mb-4 flex items-start justify-between gap-3 print:hidden">
         <div>
           <Link
-            href="/owner-center/recipe"
+            href={backHref}
             className="text-[13px] font-semibold text-muted hover:text-ink"
           >
             ← {categoryName || '레시피'}

@@ -21,6 +21,8 @@ export interface Store {
   kind: StoreKind
   sort_order: number
   is_active: boolean
+  /** 이 매장 점장에게 보이는 레시피 id. null이면 제한 없음 — 033 마이그레이션 */
+  recipe_ids: string[] | null
   created_at: string
 }
 

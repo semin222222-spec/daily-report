@@ -5,6 +5,7 @@ import { cachedThumbUrl, recipePhotoUrl, type OcFile } from '@/lib/owner-center'
 import type { Recipe, RecipeCategory } from '@/lib/recipes'
 import { FileManager } from '../[folder]/FileManager'
 import { RecipeList } from './RecipeList'
+import { StoreRecipeAccess } from './StoreRecipeAccess'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +14,7 @@ const BUCKET = 'owner-center'
 
 /** 03. 레시피 — 전체 메뉴를 카테고리별로 한 화면에 바로 보여준다 + 원본 파일 보관함 */
 export default async function RecipeHome() {
-  const { profile } = await getSessionContext()
+  const { profile, stores } = await getSessionContext()
   const isOwner = canEditOwnerCenter(profile)
   const supabase = createClient()
 
@@ -97,6 +98,10 @@ export default async function RecipeHome() {
         photos={photos}
         isOwner={isOwner}
       />
+
+      {profile.role === 'owner' && (
+        <StoreRecipeAccess stores={stores} categories={categories} recipes={recipes} />
+      )}
 
       <div className="mt-6">
         <h3 className="mb-2.5 text-[13.5px] font-bold text-ink-2">원본 파일</h3>

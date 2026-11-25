@@ -24,6 +24,8 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/schedule', icon: '🗓️', label: '근무 스케줄' },
   { href: '/reservations', icon: '📞', label: '예약현황' },
   { href: '/todos', icon: '✅', label: '오늘 할일' },
+  // 레시피 공개 범위가 정해진 매장(stores.recipe_ids)에서만 보인다 — app/(app)/layout.tsx
+  { href: '/recipes', icon: '🍳', label: '레시피' },
   // 임원전용 — 기본은 모든 점장에게 숨김. 오너가 설정에서 계정마다 열어준다.
   { href: '/executive', icon: '👔', label: '임원전용' },
   // 네이버·카카오가 리뷰를 외부로 내보내는 공식 API가 없어 수동 입력뿐이라 숨김.

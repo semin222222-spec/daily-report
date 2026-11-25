@@ -19,8 +19,11 @@ export default async function AppLayout({
   const logos = await logoMapByStoreId(session.stores)
 
   // 이 계정 권한으로 "숨김"인 메뉴는 사이드바에서 뺀다
+  // "레시피" 메뉴는 공개 범위가 정해진 매장(예: 쑥고개)에서만 보인다
   const navItems = VISIBLE_NAV_ITEMS.filter((item) =>
-    canSee(session.profile.role, session.profile.permissions, item.href)
+    item.href === '/recipes'
+      ? session.activeStore.recipe_ids != null
+      : canSee(session.profile.role, session.profile.permissions, item.href)
   )
 
   return (
